@@ -46,6 +46,18 @@ class Settings:
     gems_per_lesson: int = field(default_factory=lambda: _env_int("GEMS_PER_LESSON", 5))
     practice_hearts_reward: int = 1
 
+    # --- legendary (timed) challenge ---
+    legendary_seconds: int = field(default_factory=lambda: _env_int("LEGENDARY_SECONDS", 60))
+    legendary_grace_seconds: int = 3  # tolerance for network latency when the client submits the win
+    legendary_xp: int = field(default_factory=lambda: _env_int("LEGENDARY_XP", 20))
+    legendary_gems: int = field(default_factory=lambda: _env_int("LEGENDARY_GEMS", 10))
+
+    # --- legendary (timed) challenge ---
+    legendary_seconds: int = field(default_factory=lambda: _env_int("LEGENDARY_SECONDS", 60))
+    legendary_grace_seconds: int = 3  # tolerance for network latency when the client submits the win
+    legendary_xp: int = field(default_factory=lambda: _env_int("LEGENDARY_XP", 20))
+    legendary_gems: int = field(default_factory=lambda: _env_int("LEGENDARY_GEMS", 10))
+
 
 def get_settings() -> Settings:
     return Settings()

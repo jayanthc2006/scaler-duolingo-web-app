@@ -7,7 +7,7 @@ from app.core.config import get_settings
 from app.core.errors import register_error_handlers
 from app.db.base import Base
 from app.db.session import engine
-from app.routers import courses, health, hearts, leaderboard, lessons, me
+from app.routers import courses, health, hearts, leaderboard, legendary, lessons, me
 
 
 @asynccontextmanager
@@ -28,7 +28,7 @@ async def lifespan(_: FastAPI):
 
 def create_app() -> FastAPI:
     settings = get_settings()
-    app = FastAPI(title="Lingo API", version="1.0.0", lifespan=lifespan)
+    app = FastAPI(title="Sprout API", version="1.0.0", lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=list(settings.cors_origins),
@@ -37,7 +37,7 @@ def create_app() -> FastAPI:
     )
     register_error_handlers(app)
     api = APIRouter(prefix="/api")
-    for r in (health, me, courses, lessons, hearts, leaderboard):
+    for r in (health, me, courses, lessons, hearts, leaderboard, legendary):
         api.include_router(r.router)
     app.include_router(api)
     return app

@@ -48,11 +48,14 @@ default learner (`alex`) is always "logged in".
 | `services/attempts.py` | start/resume an attempt, public exercise projection |
 | `services/answers.py` | answer submission (idempotent), pair probe |
 | `services/completion.py` | completion verification + atomic apply |
-| `services/achievements.py`, `profile.py`, `learner.py` | achievements, profile/leaderboard/refill/goal, learner snapshot |
-| `routers/*` | thin HTTP layer |
+| `services/hearts.py` | refill with gems, start a practice session |
+| `services/leaderboard.py` | weekly leaderboard, derived per request |
+| `services/profile.py` | profile statistics, daily-goal setting |
+| `services/achievements.py`, `learner.py` | achievements; learner snapshot (`snapshot` / `refresh` = snapshot + persist heart regeneration) |
+| `routers/*` | thin HTTP layer: dependencies in, one service call, schema out (enforced by `tests/test_architecture.py`) |
 | `seed/` | `builders.py` (exercise constructors), `content.py` (the course as data), `seed.py`, `__main__.py` (CLI) |
 
-**Transaction boundary:** each service operation performs its reads, mutations and a *single* `db.commit()`.
+**Transaction boundary:** each service operation performs its reads, mutations and a *single* `db.commit()`. Mutating services take the SQLite write lock first (`begin_write` → `BEGIN IMMEDIATE`) so the read-decide-write sequence cannot interleave with another request.
 `get_db` rolls back on any escaping exception, so a failed request never leaves half-applied state.
 
 ## Frontend layout (`frontend`)
@@ -64,20 +67,24 @@ app/
   (main)/page.tsx             Learn (learning path)
   (main)/{leaderboard,profile,settings}/page.tsx
   lesson/[lessonId]/page.tsx  full-screen lesson (outside the shell)
+  (main)/legendary/page.tsx   Legendary hub (rules, availability, Start)
+  legendary/play/page.tsx     full-screen timed run (same LessonScreen, kind="legendary")
 components/
   layout/        AppShell, Navigation (sidebar / icon rail / bottom bar), TopBar
   gamification/  StatusPills (streak, XP, gems, hearts+timer), DailyGoalCard, LeaderboardRow, LeaguePreview
   learning-path/ LearningPath, UnitSection, SkillNode, ProgressRing, SkillPopover
   lesson/        LessonScreen, LessonHeader, FeedbackBar, LessonComplete
   exercises/     ExerciseRenderer + MultipleChoice / Translate(+WordBank) / MatchPairs / FillBlank / TypeAnswer
-  modals/        OutOfHeartsModal, QuitLessonModal
-  ui/            Button, Icon (original SVG set), Mascot, ProgressBar, Modal, Avatar, StateBox
+  modals/        OutOfHeartsModal, QuitLessonModal, TimesUpModal
+  ui/            Button, Icon (original SVG set), Mascot, ProgressBar, Modal, Avatar, StateBox, SpeakButton
 lib/
   api/           client.ts (fetch wrapper, ApiError), endpoints.ts (typed calls)
   types/api.ts   TypeScript mirror of the backend schemas
   lesson/        lessonMachine.ts (pure reducer), useLessonSession.ts (I/O wiring)
   learner/       LearnerContext (shared hearts/XP/streak snapshot)
-  hooks/         useAsync, useCountdown
+  hooks/         useAsync, useCountdown, useDeadline (legendary clock)
+  audio/         speech.ts (browser text-to-speech), speakable.ts (what each exercise can read aloud)
+  theme/         theme.ts (Light / Dark / Auto store + pre-paint script)
   utils/         pathLayout.ts (zig-zag geometry), format.ts
 styles/          base (tokens), ui, shell, path, lesson, pages  (plain CSS, no framework)
 ```

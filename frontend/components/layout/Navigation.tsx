@@ -7,6 +7,7 @@ import { Icon } from "@/components/ui/Icon";
 const ITEMS = [
   { href: "/", label: "Learn", icon: "home" },
   { href: "/leaderboard", label: "Leaderboard", icon: "trophy" },
+  { href: "/legendary", label: "Legendary", icon: "star" },
   { href: "/profile", label: "Profile", icon: "user" },
   { href: "/settings", label: "Settings", icon: "settings" },
 ] as const;

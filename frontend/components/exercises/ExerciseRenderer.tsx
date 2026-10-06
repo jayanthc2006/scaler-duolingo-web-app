@@ -6,6 +6,8 @@ import { MultipleChoiceExercise } from "@/components/exercises/MultipleChoiceExe
 import { TranslateExercise } from "@/components/exercises/TranslateExercise";
 import { TypeAnswerExercise } from "@/components/exercises/TypeAnswerExercise";
 import type { Verdict } from "@/components/exercises/types";
+import { SpeakButton } from "@/components/ui/SpeakButton";
+import { promptSpeech } from "@/lib/audio/speakable";
 import type { AnswerPayload, Exercise } from "@/lib/types/api";
 
 interface Props {
@@ -20,8 +22,19 @@ interface Props {
 /** Single dispatch point: picks the component for `exercise.type`. Adding a type = one case here. */
 export function ExerciseRenderer({ exercise, checkPair, ...view }: Props) {
   switch (exercise.type) {
-    case "multiple_choice":
-      return <MultipleChoiceExercise payload={exercise.payload} {...view} />;
+    case "multiple_choice": {
+      const listen = promptSpeech(exercise);
+      return (
+        <>
+          {listen && (
+            <div className="audio-row">
+              <SpeakButton text={listen} label="Listen" />
+            </div>
+          )}
+          <MultipleChoiceExercise payload={exercise.payload} {...view} />
+        </>
+      );
+    }
     case "translate":
       return <TranslateExercise payload={exercise.payload} {...view} />;
     case "match_pairs":

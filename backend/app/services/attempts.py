@@ -6,7 +6,9 @@ from sqlalchemy.orm import Session
 from app.core.clock import Clock
 from app.core.config import Settings
 from app.core.errors import ConflictError, ForbiddenError, NotFoundError
+from app.db.session import begin_write
 from app.models import Exercise, ExerciseAttempt, Lesson, LessonAttempt, User
+from app.schemas.learner import LearnerOut
 from app.schemas.lesson import AttemptOut, ExercisePublic
 from app.services import learner as learner_service
 from app.services import progress
@@ -17,6 +19,14 @@ def public_exercises(lesson: Lesson) -> list[ExercisePublic]:
         ExercisePublic(id=e.id, position=e.position, type=e.type, prompt=e.prompt, payload=e.payload)
         for e in lesson.exercises
     ]
+
+
+def list_exercises(db: Session, user_id: int, lesson_id: int) -> list[ExercisePublic]:
+    """Read-only exercise list; locked lessons expose nothing."""
+    lesson, _, status = progress.get_lesson_with_status(db, user_id, lesson_id)
+    if status == "locked":
+        raise ForbiddenError("This lesson is locked.", code="lesson_locked")
+    return public_exercises(lesson)
 
 
 def _find_open(db: Session, user_id: int, lesson_id: int, kind: str) -> LessonAttempt | None:
@@ -33,6 +43,7 @@ def _find_open(db: Session, user_id: int, lesson_id: int, kind: str) -> LessonAt
 def start_attempt(
     db: Session, user: User, lesson_id: int, kind: str, clock: Clock, settings: Settings
 ) -> AttemptOut:
+    begin_write(db)  # serialise read-decide-write (see db/session.py)
     lesson, _, status = progress.get_lesson_with_status(db, user.id, lesson_id)
     learner = learner_service.snapshot(db, user, clock, settings)
 
@@ -62,7 +73,11 @@ def start_attempt(
             attempt = _find_open(db, user.id, lesson_id, kind)
             assert attempt is not None
     db.commit()
+    return build_attempt_out(db, attempt, lesson, learner)
 
+
+def build_attempt_out(db: Session, attempt: LessonAttempt, lesson: Lesson, learner: LearnerOut) -> AttemptOut:
+    """The client's view of an attempt (shared by lessons, practice and legendary runs)."""
     solved = db.scalars(
         select(ExerciseAttempt.exercise_id).where(
             ExerciseAttempt.attempt_id == attempt.id, ExerciseAttempt.is_correct.is_(True)
@@ -72,7 +87,7 @@ def start_attempt(
         attempt_id=attempt.id,
         lesson_id=lesson.id,
         lesson_title=lesson.title,
-        kind=kind,  # type: ignore[arg-type]
+        kind=attempt.kind,  # type: ignore[arg-type]
         exercises=public_exercises(lesson),
         solved_exercise_ids=list(solved),
         learner=learner,

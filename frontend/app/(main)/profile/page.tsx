@@ -60,10 +60,10 @@ export default function ProfilePage() {
       <h2 className="section-title">Statistics</h2>
       <div className="stat-grid">
         <StatTile icon="flame" color="var(--orange)" value={l.current_streak} label="Day streak" />
-        <StatTile icon="bolt" color="var(--yellow-dark)" value={l.xp_total} label="Total XP" />
-        <StatTile icon="trophy" color="var(--purple-dark)" value={l.longest_streak} label="Longest streak" />
+        <StatTile icon="bolt" color="var(--yellow-ink)" value={l.xp_total} label="Total XP" />
+        <StatTile icon="trophy" color="var(--purple-ink)" value={l.longest_streak} label="Longest streak" />
         <StatTile icon="book" color="var(--blue)" value={p.lessons_completed} label="Lessons completed" />
-        <StatTile icon="crown" color="var(--yellow-dark)" value={p.skills_completed} label="Skills completed" />
+        <StatTile icon="crown" color="var(--yellow-ink)" value={p.skills_completed} label="Skills completed" />
         <StatTile icon="gem" color="var(--blue)" value={l.gems} label="Gems" />
       </div>
 

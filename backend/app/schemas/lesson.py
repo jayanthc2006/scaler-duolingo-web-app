@@ -1,11 +1,13 @@
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
 
 from app.schemas.learner import AchievementOut, LearnerOut
 from app.services.evaluation import AnswerPayload
 
-AttemptKind = Literal["lesson", "practice"]
+AttemptKind = Literal["lesson", "practice", "legendary"]
+StartKind = Literal["lesson", "practice"]  # what the generic start endpoint accepts: legendary has its own
+AttemptId = Annotated[int, Field(ge=1, le=2**63 - 1)]  # bounded: see deps.MAX_ID
 
 
 class ExercisePublic(BaseModel):
@@ -19,7 +21,7 @@ class ExercisePublic(BaseModel):
 
 
 class StartAttemptIn(BaseModel):
-    kind: AttemptKind = "lesson"
+    kind: StartKind = "lesson"
 
 
 class AttemptOut(BaseModel):
@@ -30,10 +32,12 @@ class AttemptOut(BaseModel):
     exercises: list[ExercisePublic]
     solved_exercise_ids: list[int]  # makes the lesson resumable after a refresh
     learner: LearnerOut
+    time_limit_seconds: int | None = None  # legendary attempts only
+    seconds_left: int | None = None  # legendary attempts only: remaining time as of this response
 
 
 class AnswerIn(BaseModel):
-    attempt_id: int
+    attempt_id: AttemptId
     request_id: str = Field(min_length=8, max_length=64, description="client idempotency key")
     answer: AnswerPayload
 
@@ -59,7 +63,7 @@ class PairCheckOut(BaseModel):
 
 
 class CompleteIn(BaseModel):
-    attempt_id: int
+    attempt_id: AttemptId
 
 
 class CompleteOut(BaseModel):

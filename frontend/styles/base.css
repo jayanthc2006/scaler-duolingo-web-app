@@ -18,6 +18,14 @@
   --pink: #ff86d0;
   --pink-dark: #d96bb0;
 
+  /* text-weight variants of the accents (identical to the -dark edge colours in light mode, lighter in dark) */
+  --green-ink: #58a700;
+  --blue-ink: #1899d6;
+  --red-ink: #ea2b2b;
+  --yellow-ink: #e5b400;
+  --purple-ink: #a568cc;
+  --purple-soft: #f1ddff;
+
   --ink: #3c3c3c;
   --text: #4b4b4b;
   --muted: #777777;
@@ -25,6 +33,14 @@
   --line: #e5e5e5;
   --bg: #ffffff;
   --surface: #f7f7f7;
+  --card: #ffffff;
+  --glass: rgba(255, 255, 255, 0.96);
+  --toast-bg: #3c3c3c;
+  --locked-edge: #cfcfcf;
+  --locked-fg: #b5b5b5;
+  --disabled-edge: #d0d0d0;
+  --skeleton-a: #eeeeee;
+  --skeleton-b: #f6f6f6;
 
   --radius: 16px;
   --radius-lg: 20px;
@@ -33,6 +49,41 @@
 
   --ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+
+/* Dark scheme: <html data-scheme="dark">, set before first paint by the inline script in app/layout.tsx.
+   (Unit colours use data-theme on wrappers - a separate axis.) Only tokens change; components are shared. */
+:root[data-scheme="dark"] {
+  color-scheme: dark;
+  --ink: #f0f4f6;
+  --text: #d2dce1;
+  --muted: #9fb1b9;
+  --faint: #6d818b;
+  --line: #31454f;
+  --bg: #131f24;
+  --surface: #1e2e36;
+  --card: #1a2a31;
+  --glass: rgba(19, 31, 36, 0.94);
+  --toast-bg: #2d424c;
+  --locked-edge: #22343c;
+  --locked-fg: #6d818b;
+  --disabled-edge: #22343c;
+  --skeleton-a: #1e2e36;
+  --skeleton-b: #263842;
+
+  --green-soft: #1f3b18;
+  --blue-soft: #163549;
+  --red-soft: #43242b;
+  --yellow-soft: #3b3413;
+  --purple-soft: #33264b;
+  --green-ink: #89e219;
+  --blue-ink: #5cc8fb;
+  --red-ink: #ff8f8f;
+  --yellow-ink: #ffd33d;
+  --purple-ink: #d9a8ff;
+}
+:root[data-scheme="dark"] [data-theme="purple"] { --t-soft: #33264b; }
+:root[data-scheme="dark"] [data-theme="orange"] { --t-soft: #43300f; }
+:root[data-scheme="dark"] [data-theme="pink"] { --t-soft: #43233a; }
 
 /* Unit colour themes: set via data-theme on a wrapper */
 [data-theme="green"] { --t-main: var(--green); --t-dark: var(--green-dark); --t-soft: var(--green-soft); }

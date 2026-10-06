@@ -3,6 +3,7 @@ import { Nunito } from "next/font/google";
 import type { ReactNode } from "react";
 import { ToastProvider } from "@/components/ui/Toast";
 import { LearnerProvider } from "@/lib/learner/LearnerContext";
+import { THEME_INIT_SCRIPT } from "@/lib/theme/theme";
 import "@/styles/base.css";
 import "@/styles/ui.css";
 import "@/styles/shell.css";
@@ -21,7 +22,11 @@ export const viewport: Viewport = { themeColor: "#58cc02", width: "device-width"
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={nunito.variable}>
+    <html lang="en" className={nunito.variable} suppressHydrationWarning>
+      <head>
+        {/* sets data-scheme before first paint; the attribute is why <html> suppresses the hydration diff */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body>
         <a href="#main" className="skip-link">Skip to content</a>
         <LearnerProvider>

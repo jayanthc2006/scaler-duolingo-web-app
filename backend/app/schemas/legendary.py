@@ -1,0 +1,12 @@
+from pydantic import BaseModel
+
+
+class LegendaryStatusOut(BaseModel):
+    """What the entry card needs: is a challenge available, how long, what it pays."""
+
+    available: bool
+    remaining: int  # completed lessons not yet conquered
+    conquered: int
+    time_limit_seconds: int
+    reward_xp: int
+    reward_gems: int

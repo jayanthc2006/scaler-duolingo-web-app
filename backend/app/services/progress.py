@@ -13,6 +13,7 @@ from app.core.errors import NotFoundError
 from app.models import Course, Lesson, Skill, Unit, UserSkillProgress
 from app.schemas.course import (
     CourseOut,
+    LessonOut,
     LessonStatus,
     LessonSummary,
     PathOut,
@@ -167,3 +168,22 @@ def get_lesson_with_status(db: Session, user_id: int, lesson_id: int) -> tuple[L
         raise NotFoundError("Lesson not found.", code="lesson_not_found")
     st = find_skill_state(db, user_id, lesson.skill_id)
     return lesson, st, lesson_status(lesson, st.done, st.unlocked)
+
+
+def lesson_detail(db: Session, user_id: int, lesson_id: int) -> LessonOut:
+    lesson, st, status = get_lesson_with_status(db, user_id, lesson_id)
+    return LessonOut(
+        id=lesson.id,
+        title=lesson.title,
+        position=lesson.position,
+        skill_id=st.skill.id,
+        skill_title=st.skill.title,
+        unit_title=st.unit.title,
+        unit_color=st.unit.color,
+        status=status,
+        exercise_count=len(lesson.exercises),
+    )
+
+
+def list_courses(db: Session) -> list[Course]:
+    return list(db.scalars(select(Course).order_by(Course.id)))

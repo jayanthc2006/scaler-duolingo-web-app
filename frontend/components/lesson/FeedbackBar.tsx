@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
+import { SpeakButton } from "@/components/ui/SpeakButton";
 import type { AnswerResult } from "@/lib/types/api";
 
 const PRAISE = ["Great job!", "Nice work!", "Awesome!", "Correct!", "You got it!", "Perfect!"];
@@ -12,12 +13,14 @@ interface Props {
   result: AnswerResult | null;
   notice: string | null;
   praiseSeed: number;
+  /** Spanish text of the finished answer; adds a listen button to the feedback banner. */
+  listen?: string | null;
   onCheck: () => void;
   onContinue: () => void;
 }
 
 /** Bottom bar: Check button while answering, green/red banner + Continue after the backend replies. */
-export function FeedbackBar({ phase, canCheck, result, notice, praiseSeed, onCheck, onContinue }: Props) {
+export function FeedbackBar({ phase, canCheck, result, notice, praiseSeed, listen, onCheck, onContinue }: Props) {
   const showing = phase === "feedback" && result;
   const correct = showing && result.correct;
 
@@ -44,6 +47,7 @@ export function FeedbackBar({ phase, canCheck, result, notice, praiseSeed, onChe
                   </p>
                 )}
               </div>
+              {listen && <SpeakButton text={listen} />}
               {correct && result.xp_awarded > 0 && <span className="xp-float" aria-label={`Plus ${result.xp_awarded} XP`}>+{result.xp_awarded} XP</span>}
             </div>
             <Button variant={correct ? "primary" : "red"} className="footer-btn" onClick={onContinue} data-primary-action autoFocus>

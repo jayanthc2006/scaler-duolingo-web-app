@@ -1,7 +1,6 @@
 from fastapi import APIRouter
-from sqlalchemy import select
 
-from app.deps import DbDep, UserDep
+from app.deps import DbDep, IdPath, UserDep
 from app.models import Course
 from app.schemas.course import CourseOut, PathOut, SkillDetail, SkillNode, UnitOut
 from app.services import progress
@@ -11,11 +10,11 @@ router = APIRouter(tags=["course"])
 
 @router.get("/courses", response_model=list[CourseOut])
 def list_courses(db: DbDep) -> list[Course]:
-    return list(db.scalars(select(Course).order_by(Course.id)))
+    return progress.list_courses(db)
 
 
 @router.get("/courses/{course_id}/path", response_model=PathOut)
-def course_path(course_id: int, db: DbDep, user: UserDep) -> PathOut:
+def course_path(course_id: IdPath, db: DbDep, user: UserDep) -> PathOut:
     """Units + skills with this learner's lock/progress state, in one round trip."""
     return progress.build_path(db, user.id, course_id)
 
@@ -31,5 +30,5 @@ def list_skills(db: DbDep, user: UserDep) -> list[SkillNode]:
 
 
 @router.get("/skills/{skill_id}", response_model=SkillDetail)
-def get_skill(skill_id: int, db: DbDep, user: UserDep) -> SkillDetail:
+def get_skill(skill_id: IdPath, db: DbDep, user: UserDep) -> SkillDetail:
     return progress.skill_detail(db, user.id, skill_id)

@@ -5,6 +5,9 @@ The current learner is the seeded default user (no auth).
 
 ## Errors
 
+Row ids in paths and bodies are bounded to 1..2^63-1; anything else (negative, zero, absurdly large, non-numeric) is a clean
+`422 validation_error` rather than a server error.
+
 Every error uses one shape (including validation and unknown routes):
 
 ```json
@@ -71,6 +74,19 @@ result and changes nothing; answering an already-solved exercise returns `alread
 `hearts_gained` (practice), `mistakes`, `skill_completed`, `new_achievements[]`, `learner`, and
 `already_completed` (true when the call was a repeat → nothing was applied again). `409 lesson_incomplete` if any
 exercise of the lesson has no correct answer in this attempt.
+
+### Legendary challenge (timed)
+| Method & path | Description |
+| --- | --- |
+| `GET /api/legendary` | `{available, remaining, conquered, time_limit_seconds, reward_xp, reward_gems}`: `remaining` = completed lessons that have not paid a legendary reward yet |
+| `POST /api/legendary/start` | start **or resume** the timed run. The server picks the lesson (first completed, not-yet-conquered lesson in path order). Same response as `/attempts` plus `time_limit_seconds` and `seconds_left`. `409 legendary_unavailable` if no lesson qualifies |
+
+Answers go through the normal `POST /exercises/{id}/answer` (free mistakes: no hearts, no XP) and the win is claimed with the normal
+`POST /lessons/{lesson_id}/complete` (`kind: "legendary"` in the response, `xp_total_gained` = the reward). Rules enforced by the server:
+completion after `time_limit + 3 s` grace → `409 legendary_expired` and the attempt is closed (`failed`); a lesson already won →
+`409 legendary_already_won`; a closed attempt → `409 attempt_closed`; a repeat of a successful completion is a harmless replay
+(`already_completed: true`, nothing applied). Starting again after expiry closes the old attempt and gives a fresh clock; starting while a
+run is still live resumes it with the remaining seconds. `POST /lessons/{id}/attempts` still only accepts `lesson` / `practice`.
 
 ### Hearts
 | Method & path | Description |

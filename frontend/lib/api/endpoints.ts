@@ -7,6 +7,7 @@ import type {
   CompleteResult,
   Course,
   Leaderboard,
+  LegendaryStatus,
   Learner,
   Path,
   Profile,
@@ -42,4 +43,7 @@ export const api = {
   refillHearts: () => request<{ learner: Learner }>("/hearts/refill", { method: "POST" }),
 
   leaderboard: () => request<Leaderboard>("/leaderboard"),
+
+  legendary: () => request<LegendaryStatus>("/legendary"),
+  startLegendary: () => request<Attempt>("/legendary/start", { method: "POST" }),
 };

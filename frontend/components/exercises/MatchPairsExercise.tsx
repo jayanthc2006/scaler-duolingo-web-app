@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { ExerciseViewProps } from "@/components/exercises/types";
+import { speakSpanish } from "@/lib/audio/speech";
 import type { MatchPairsPayload, TileOption } from "@/lib/types/api";
 
 interface Props extends ExerciseViewProps<MatchPairsPayload> {
@@ -55,6 +56,7 @@ export function MatchPairsExercise({ payload, disabled, onAnswer, checkPair }: P
     if (disabled || busy || wrong) return;
     const next = { ...selected, [side]: selected[side] === id ? null : id };
     setSelected(next);
+    if (side === "left" && next.left) speakSpanish(payload.left.find((o) => o.id === id)?.text ?? ""); // hear the word you pick
     if (next.left && next.right) void resolve(next.left, next.right);
   };
 

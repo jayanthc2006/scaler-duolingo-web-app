@@ -5,12 +5,19 @@ import { Icon } from "@/components/ui/Icon";
 import { useToast } from "@/components/ui/Toast";
 import { api } from "@/lib/api/endpoints";
 import { useLearner } from "@/lib/learner/LearnerContext";
+import { useThemePreference, type ThemePreference } from "@/lib/theme/theme";
 
 const GOALS = [
   { xp: 10, label: "Casual", note: "10 XP / day" },
   { xp: 20, label: "Regular", note: "20 XP / day" },
   { xp: 30, label: "Serious", note: "30 XP / day" },
   { xp: 50, label: "Intense", note: "50 XP / day" },
+];
+
+const THEME_OPTIONS: { value: ThemePreference; label: string; note: string }[] = [
+  { value: "light", label: "Light", note: "Bright and clean" },
+  { value: "dark", label: "Dark", note: "Easy on the eyes" },
+  { value: "system", label: "Auto", note: "Match my device" },
 ];
 
 function Section({ icon, title, note, children }: { icon: string; title: string; note?: string; children: ReactNode }) {
@@ -47,6 +54,7 @@ function SoonRow({ label, control }: { label: string; control?: "toggle" }) {
 
 export default function SettingsPage() {
   const { learner, setLearner } = useLearner();
+  const [theme, setTheme] = useThemePreference();
   const toast = useToast();
   const [saving, setSaving] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -110,9 +118,22 @@ export default function SettingsPage() {
         <SoonRow label="App language" />
       </Section>
 
-      <Section icon="moon" title="Theme">
-        <Row label="Appearance" value="Light" />
-        <SoonRow label="Dark mode" control="toggle" />
+      <Section icon="moon" title="Theme" note="Auto follows your device.">
+        <div className="goal-options theme-options" role="radiogroup" aria-label="Appearance">
+          {THEME_OPTIONS.map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              role="radio"
+              aria-checked={theme === o.value}
+              className={`goal-option${theme === o.value ? " is-active" : ""}`}
+              onClick={() => setTheme(o.value)}
+            >
+              <strong>{o.label}</strong>
+              <span>{o.note}</span>
+            </button>
+          ))}
+        </div>
       </Section>
     </div>
   );

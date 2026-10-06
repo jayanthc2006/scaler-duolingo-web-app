@@ -5,9 +5,11 @@
   position: sticky; top: var(--topbar-h); z-index: 10;
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
   padding: 16px 20px; border-radius: var(--radius-lg);
-  background: var(--t-main); color: #fff; box-shadow: 0 5px 0 var(--t-dark);
+  background: var(--t-main) radial-gradient(circle at 92% -30%, rgba(255, 255, 255, 0.22) 0 38%, transparent 39%) no-repeat;
+  color: #fff; box-shadow: 0 5px 0 var(--t-dark); overflow: hidden;
 }
-.unit-banner h2 { color: #fff; font-size: 20px; letter-spacing: 0.2px; }
+.unit-eyebrow { display: block; font-size: 12px; font-weight: 900; letter-spacing: 1.2px; text-transform: uppercase; opacity: 0.8; margin-bottom: 2px; }
+.unit-banner h2 { color: #fff; font-size: 22px; line-height: 1.15; letter-spacing: 0.2px; }
 .unit-banner p { font-size: 15px; font-weight: 700; opacity: 0.92; }
 .unit-count { flex: none; text-align: center; font-size: 12px; font-weight: 900; letter-spacing: 0.8px; text-transform: uppercase; background: rgba(0, 0, 0, 0.16); padding: 8px 12px; border-radius: 12px; }
 
@@ -34,15 +36,15 @@
 .node-btn:active { transform: translateY(7px); box-shadow: 0 0 0 var(--t-dark); }
 .node-btn.is-completed { --icon-cut: var(--yellow); background: var(--yellow); box-shadow: 0 7px 0 var(--yellow-dark); }
 .node-btn.is-completed:active { box-shadow: 0 0 0 var(--yellow-dark); }
-.node-btn.is-locked { --icon-cut: var(--line); background: var(--line); box-shadow: 0 7px 0 #cfcfcf; color: #b5b5b5; cursor: pointer; }
+.node-btn.is-locked { --icon-cut: var(--line); background: var(--line); box-shadow: 0 7px 0 var(--locked-edge); color: var(--locked-fg); cursor: pointer; }
 .node-btn.is-locked::before { display: none; }
-.node-btn.is-locked:active { transform: none; box-shadow: 0 7px 0 #cfcfcf; }
+.node-btn.is-locked:active { transform: none; box-shadow: 0 7px 0 var(--locked-edge); }
 .node-btn.is-current { animation: node-pulse 2.2s ease-in-out infinite; }
 @keyframes node-pulse { 0%, 100% { filter: none; } 50% { filter: brightness(1.08); } }
 
 .node-badge {
   position: absolute; right: -4px; bottom: -4px; display: grid; place-items: center;
-  width: 28px; height: 28px; border-radius: 50%; background: #fff; border: 3px solid var(--yellow); color: var(--yellow-dark);
+  width: 28px; height: 28px; border-radius: 50%; background: var(--card); border: 3px solid var(--yellow); color: var(--yellow-ink);
 }
 .node-badge.is-lock { border-color: var(--line); color: var(--faint); }
 .node-badge.is-done { background: var(--green); border-color: #fff; color: #fff; }
@@ -54,12 +56,23 @@
 .node-sub { display: block; margin-top: 2px; font-size: 12px; font-weight: 700; color: var(--muted); }
 
 .start-bubble {
-  position: absolute; top: -34px; left: 50%; transform: translateX(-50%); z-index: 2;
-  background: #fff; color: var(--t-main); border: 2px solid var(--line); border-radius: 12px;
+  /* Horizontal clearance: when the previous node is close sideways (--bubble-dx, set per node), slide the
+     bubble away from it just far enough that it does not cover that node's "n/m" caption (half-width of
+     the bubble + 14px of caption half-width + gap, minus the distance). Percentages are of the bubble itself. */
+  --bubble-shift: calc(var(--bubble-dir, 1) * max(0px, 50% + 14px - var(--bubble-dx, 999px)));
+  position: absolute; top: -34px; left: 50%; transform: translateX(calc(-50% + var(--bubble-shift))); z-index: 2;
+  background: var(--card); color: var(--t-main); border: 2px solid var(--line); border-radius: 12px;
   padding: 4px 12px; font-size: 13px; font-weight: 900; letter-spacing: 1px; white-space: nowrap;
-  animation: float 1.8s ease-in-out infinite;
+  animation: bubble-float 1.8s ease-in-out infinite;
 }
-.start-bubble::after { content: ""; position: absolute; left: 50%; bottom: -8px; width: 12px; height: 12px; background: #fff; border-right: 2px solid var(--line); border-bottom: 2px solid var(--line); transform: translateX(-50%) rotate(45deg); }
+/* Own keyframes: the shared `float` sets transform: translateY() only, which would replace the
+   translateX() centring above and push the bubble half its width to the right. It also nudges
+   DOWN toward its node (never up), so it cannot touch the previous node's label above it. */
+@keyframes bubble-float {
+  0%, 100% { transform: translateX(calc(-50% + var(--bubble-shift))) translateY(0); }
+  50% { transform: translateX(calc(-50% + var(--bubble-shift))) translateY(4px); }
+}
+.start-bubble::after { content: ""; position: absolute; left: calc(50% - var(--bubble-shift)); bottom: -8px; width: 12px; height: 12px; background: var(--card); border-right: 2px solid var(--line); border-bottom: 2px solid var(--line); transform: translateX(-50%) rotate(45deg); }
 
 /* skill popover */
 .skill-pop {
@@ -67,7 +80,7 @@
   background: var(--t-main); color: #fff; border-radius: var(--radius-lg); padding: 16px; box-shadow: 0 6px 0 var(--t-dark);
   animation: pop-in 0.22s var(--ease-pop); text-align: left; scroll-margin-block: 80px 100px;
 }
-.skill-pop.is-locked { background: var(--line); color: var(--muted); box-shadow: 0 6px 0 #cfcfcf; }
+.skill-pop.is-locked { background: var(--line); color: var(--muted); box-shadow: 0 6px 0 var(--locked-edge); }
 @keyframes pop-in { from { opacity: 0; transform: translateX(-50%) scale(0.9); } to { opacity: 1; transform: translateX(-50%) scale(1); } }
 .skill-pop::before { content: ""; position: absolute; top: -8px; left: var(--arrow-x, 50%); width: 16px; height: 16px; background: inherit; transform: translateX(-50%) rotate(45deg); border-radius: 3px; }
 .skill-pop h3 { color: inherit; font-size: 19px; }
@@ -89,4 +102,16 @@
   .unit-banner { padding: 12px 14px; }
   .unit-banner h2 { font-size: 17px; }
   .unit-banner p { font-size: 13px; }
+}
+
+/* focal point: pulse ring behind the current node + the mascot cheering it on; side shapes on wide screens */
+.node-wrap.is-current::before { content: ""; position: absolute; inset: 2px; border-radius: 50%; background: var(--t-main); opacity: 0.35; animation: pulse-ring 2s ease-out infinite; }
+.path-mascot { position: absolute; z-index: 1; pointer-events: none; }
+.path-mascot.is-left { left: 0; }
+.path-mascot.is-right { right: 0; }
+.path-track::before, .path-track::after { content: ""; position: absolute; border-radius: 50%; background: var(--t-main); opacity: 0.16; display: none; pointer-events: none; }
+.path-track::before { width: 44px; height: 44px; left: -70px; top: 250px; }
+.path-track::after { width: 28px; height: 28px; right: -60px; top: 380px; }
+@media (min-width: 760px) {
+  .path-track::before, .path-track::after { display: block; }
 }

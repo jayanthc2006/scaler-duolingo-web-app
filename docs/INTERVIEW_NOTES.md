@@ -84,7 +84,11 @@ Verified: state identical after a backend process restart and after a browser re
 * One commit per service call; rollback on exception (`get_db`).
 * Layers: (1) service checks → friendly responses; (2) `request_id` replay; (3) compare-and-set on completion; (4) partial
   unique indexes. Say it as "belt and braces: the app handles the normal case, the database guarantees the invariant".
-* `tests/test_concurrency.py`: 8 parallel completions → exactly one winner; 8 parallel identical answers → one heart lost.
+* `tests/test_concurrency.py` (16 parallel requests, file DB): identical completions → exactly one winner; identical answers →
+  one heart lost; *distinct* wrong answers → exactly 5 hearts lost; parallel correct answers → no lost XP; parallel refills → gems
+  charged once. **Story worth telling:** an earlier version passed with 8 workers but failed with 16 - every parallel wrong answer
+  read "hearts > 0" and wrote back (lost update), so a learner could dodge heart loss. Fix: `BEGIN IMMEDIATE` before the
+  read-decide-write (`begin_write`), found by raising the worker count rather than trusting a green run.
   Mutation check: removing the guard makes the test fail (8 "winners").
 * **Partial failure:** nothing is applied unless the single commit succeeds.
 
@@ -92,9 +96,19 @@ Verified: state identical after a backend process restart and after a browser re
 `AppError` subclasses carry `code` + status; handlers convert them, `RequestValidationError` and Starlette HTTP errors into the
 same envelope. The frontend `ApiError` exposes `code` (e.g. `out_of_hearts` drives UI state).
 
+## 15b. Bonus features (added after the core was frozen)
+* **Legendary**: reuse, don't fork. One new attempt kind, own start endpoint, server-side deadline in `complete_attempt`, reward once per
+  lesson. Likely questions: *how do you stop reward farming?* (once per lesson, partial unique index, closed/failed attempts can't complete,
+  replay is idempotent); *why not trust the client timer?* (it is display only; the server compares `started_at` with its injected clock +
+  3 s grace); *why free mistakes?* (time is the cost; hearts are a different system).
+* **Dark mode**: tokens, not an inversion filter; accents get separate text variants; pre-paint script avoids the flash; `data-scheme` vs
+  the existing `data-theme` unit colours.
+* **Audio**: `SpeechSynthesis`; speak what is asked about before answering, and the finished answer only after the server has graded it.
+* **Achievements / leaderboard**: already data-driven / derived; the only addition is a `Legend` badge so the system can be demoed fast.
+
 ## 16. Trade-offs and limitations (be upfront)
 SQLite single writer; no auth (one default learner); UTC days; no migrations; probe endpoint can be brute-forced; one course;
-no audio/speaking exercises; leaderboard is weekly-XP over seeded rivals; Settings are placeholders except the daily goal;
+audio is browser TTS only (no speech recognition); leaderboard is weekly-XP over seeded rivals; Settings are placeholders except the daily goal and theme;
 deployment not performed by me (see README).
 
 ## 17. What changes at production scale
@@ -117,7 +131,7 @@ redundant index and an unused index; the out-of-hearts modal read gems from a no
 * *Why can't the client cheat XP?* It never sends XP; the server computes it from judged answers, once per exercise per attempt.
 * *What if the user double-clicks Check?* Phase moves to `checking` (button disabled); even if two requests escape, same
   `request_id` → replay; different ids → `already_solved`/unique index.
-* *What if complete is called twice / in parallel?* CAS: one winner applies; the rest return the stored result.
+* *What if complete is called twice / in parallel?* The write lock serialises them and the CAS lets one winner apply; the rest return the stored result.
 * *How do you test time?* Inject `Clock`; `FixedClock.advance(days=1)`.
 * *Why is the leaderboard weekly?* Matches the product, and lets rank change visibly; derived from `daily_activity`.
 * *Why SQLite?* Required by the brief; fine for one node; Postgres for scale.

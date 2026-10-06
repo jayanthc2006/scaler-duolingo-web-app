@@ -2,9 +2,13 @@
 
 This project was built in a single agentic session with **Claude Code (Claude Sonnet 5.5)** working directly in the
 repository: it inspected the (empty) repo, wrote the code and tests, ran them, drove the app in a browser, and fixed what
-it found. No existing Duolingo clone, template or proprietary asset was used; all code, SVG icons, the mascot and the course
-content were written from the written requirements. This file records, per subsystem, what the AI did, how it was checked,
-and what it got wrong.
+it found.
+
+**Use of public repositories.** During two refinement passes, public Duolingo-clone repositories were reviewed *only* as
+architecture, UX and visual benchmarks (for example, which structural and visual principles such an app tends to follow). No
+source code, assets, proprietary material or repository-specific implementation was copied or adapted from them or from any
+template. The code, the SVG icons, the mascot, the CSS and the course content in this repository were written during the
+session. This file records, per subsystem, what the AI did, how it was checked, and what it got wrong.
 
 > **Honesty note.** "Reviewed" below means *verified by tests, by running the app, or by inspecting output during the
 > session*. Whether **you** have read each file line by line is something only you can attest - use the checklist at the
@@ -12,7 +16,7 @@ and what it got wrong.
 
 | Subsystem | AI was asked to | AI generated | How it was checked | Changed after checking | Why the final design |
 | --- | --- | --- | --- | --- | --- |
-| Data model | design a normalised SQLite schema for content + learner state with constraints and indexes | `models/content.py`, `models/learner.py`, partial unique indexes, CHECKs | 62 backend tests incl. DB-level constraint tests; `sqlite_master` dump | removed two unjustified indexes (`ix_exercises_lesson`, `ix_user_stats_xp`) | indexes must each protect an invariant or serve a query (DATABASE.md) |
+| Data model | design a normalised SQLite schema for content + learner state with constraints and indexes | `models/content.py`, `models/learner.py`, partial unique indexes, CHECKs | 122 backend tests (107 core + 15 for the later Legendary feature) incl. DB-level constraint tests; `sqlite_master` dump | removed two unjustified indexes (`ix_exercises_lesson`, `ix_user_stats_xp`) | indexes must each protect an invariant or serve a query (DATABASE.md) |
 | Seed + content | seed a small Spanish course with all five exercise types, deterministic | `seed/builders.py`, `seed/content.py`, `seed/seed.py` | determinism + idempotency tests; manual play of lesson 1 | **bug:** `Unit(course=course)` no longer adds to the session in SQLAlchemy 2.1 → rewrote with `course.units.append(...)` | explicit parent-collection appends are version-proof |
 | Answer evaluation | authoritative validation per type, hidden key | `services/evaluation.py`, public/private column split, `ExercisePublic` | unit tests per type; test asserting forbidden keys are absent from raw responses | none | pure functions are cheap to test; schema without an answer field cannot leak it |
 | Gamification | hearts, XP, streak, daily goal, regen, refill, practice | `services/gamification.py`, `profile.py` | pure-function tests with a fixed clock; API tests across simulated days | none functionally; moved `mistakes` counting to include practice | injected clock → deterministic date logic |
@@ -34,6 +38,23 @@ and what it got wrong.
 6. Out-of-hearts modal showed "0 gems" because it read a learner object that is `null` before the attempt loads.
 7. Package files written with a UTF-8 BOM by PowerShell broke `package.json` parsing in Next.
 8. Practice-mode mistakes were not counted (accuracy always 100 %).
+9. (Pass 3 break-tests) Oversized ids (`/api/lessons/1180591620717411303424`) caused an `OverflowError` → HTTP 500; ids are now bounded.
+10. (Pass 3) A **lost-update race**: with 16 parallel wrong answers all 16 reported a lost heart (each read "hearts > 0"), so heart loss
+    could be dodged. The earlier concurrency tests used 8 workers and passed by luck. Fixed with `BEGIN IMMEDIATE` (`begin_write`) and
+    verified 25/25 stable runs at 16 workers.
+
+### Bonus pass (audio, legendary, dark mode)
+
+* Audited first: achievements, leaderboard and responsive were already complete and were not rebuilt; audio, the timed challenge and dark
+  mode were missing.
+* Legendary was designed to reuse the lesson engine (new attempt kind + server deadline) instead of a second engine; the generic start
+  endpoint was explicitly closed to the new kind so a client cannot mint one.
+* Things the assistant got wrong along the way: a `kind` literal shared by the start request and the response would have let the
+  generic endpoint create legendary attempts (caught while writing the tests); a first `useDeadline` draft used `Math.round` and would
+  have shown 0:00 half a second early (switched to ceil); an inline-`#fff` sweep missed `--b-bg` / `::before` surfaces until the dark
+  screens were actually viewed; Node's experimental `localStorage` shadowed jsdom's in the theme test.
+* Verified by running: backend 122 tests, frontend 57 tests, a real browser run of a full legendary win (+20 XP, rank 5 → 3), a time-out,
+  a retry, and the audio calls (a stubbed `speechSynthesis.speak` recorded `es-ES` utterances; the actual sound was not audible to me).
 
 ## What was *not* done / not verified
 

@@ -16,7 +16,7 @@ export function TranslateExercise({ payload, disabled, verdict, onAnswer }: Exer
 
   return (
     <div className="exercise-body">
-      <PromptBubble text={payload.source_text} />
+      <PromptBubble text={payload.source_text} speak={payload.direction === "to_source"} />
       <WordBank tokens={payload.tokens} selected={selected} onChange={change} disabled={disabled} verdict={verdict} />
     </div>
   );

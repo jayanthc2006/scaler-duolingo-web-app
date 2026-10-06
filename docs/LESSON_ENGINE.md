@@ -107,6 +107,24 @@ backend, so skipping the UI cannot bypass validation.
    streak, new achievements. **Practice** attempts instead restore +1 heart and give no XP.
 6. One `commit()`. A crash before it leaves nothing applied.
 
+## Legendary challenge
+
+A timed re-run of a lesson the learner already finished. It is deliberately **not** a second engine:
+
+* `POST /legendary/start` (`services/legendary.py`) only chooses the lesson and creates a `lesson_attempts` row with `kind='legendary'`.
+  Everything after that is the normal loop: the same exercises, the same `POST /exercises/{id}/answer` (a legendary attempt behaves like
+  practice: free mistakes, no XP), the same `POST /lessons/{id}/complete` and the same `useLessonSession` / reducer. The reducer is unchanged.
+* Time lives on the server: the deadline is `started_at + LEGENDARY_SECONDS`. `complete_attempt` calls `legendary.check_can_complete`
+  before anything is applied: later than the limit + 3 s grace → the attempt is closed as `failed` and `409 legendary_expired`; a lesson
+  already won → `409 legendary_already_won`. The client's countdown (`useDeadline`) only drives the display and the time's-up screen.
+* Winning applies one transaction: +20 XP (via `record_activity`, so streak, daily goal and the weekly leaderboard see it) and +10 gems,
+  then achievements are re-evaluated. It does **not** touch `user_skill_progress` or hearts, and it does not count as a lesson
+  completion (`lessons` metric counts `kind='lesson'` only).
+* Exploit paths: replaying `/complete` is the idempotent replay; a failed attempt can never complete; the generic start endpoint rejects
+  `kind='legendary'`; the reward is paid once per lesson (service check + partial unique index); slow runs are rejected by the server clock.
+* Frontend: `/legendary` (hub: rules, availability, Start) and `/legendary/play` (the run, full-screen like lessons). The header swaps the
+  hearts for a countdown; at 0 a "Time's up" modal offers *Try again* (a fresh server-timed attempt) or *Back*.
+
 ## Hearts, XP, streak, daily goal (all in `services/gamification.py`)
 
 | Rule | Implementation |

@@ -27,7 +27,15 @@ def metrics(db: Session, user: User) -> dict[str, int]:
             UserSkillProgress.user_id == user.id, UserSkillProgress.completed_at.is_not(None)
         )
     )
+    legendaries = db.scalar(
+        select(func.count()).select_from(LessonAttempt).where(
+            LessonAttempt.user_id == user.id,
+            LessonAttempt.kind == "legendary",
+            LessonAttempt.status == "completed",
+        )
+    )
     return {
+        "legendaries": legendaries or 0,
         "xp_total": user.stats.xp_total,
         "current_streak": user.stats.current_streak,
         "lessons": lessons or 0,

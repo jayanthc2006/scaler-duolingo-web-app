@@ -15,7 +15,7 @@ export function TypeAnswerExercise({ payload, disabled, verdict, onAnswer }: Exe
 
   return (
     <div className="exercise-body">
-      <PromptBubble text={payload.source_text} />
+      <PromptBubble text={payload.source_text} speak={payload.direction === "to_source"} />
       <input
         ref={input}
         className={`type-input${verdict ? ` is-${verdict}` : ""}`}

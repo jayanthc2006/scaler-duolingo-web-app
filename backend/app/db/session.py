@@ -47,3 +47,20 @@ def get_db() -> Iterator[Session]:
         raise
     finally:
         db.close()
+
+
+def begin_write(db: Session) -> None:
+    """Take SQLite's write lock *before* reading state that a mutation depends on.
+
+    Without it two requests can read the same hearts/XP, both decide, and both write (lost update:
+    parallel wrong answers would each see "hearts > 0"). BEGIN IMMEDIATE serialises the whole
+    read-decide-write sequence; waiters queue up to `busy_timeout`. Objects loaded earlier in the request
+    are expired so they are re-read inside the lock. No-op for non-SQLite databases or when a
+    transaction is already open on the connection.
+    """
+    if db.get_bind().dialect.name != "sqlite":
+        return
+    raw = db.connection().connection.dbapi_connection
+    if raw is not None and not raw.in_transaction:
+        raw.execute("BEGIN IMMEDIATE")
+    db.expire_all()

@@ -32,6 +32,8 @@ function Stat({ label, value, icon, tone }: { label: string; value: string; icon
 export function LessonComplete({ result, total }: { result: CompleteResult; total: number }) {
   const router = useRouter();
   const practice = result.kind === "practice";
+  const legendary = result.kind === "legendary";
+  const home = legendary ? "/legendary" : "/";
   const accuracy = Math.round((total / (total + result.mistakes)) * 100);
   const { learner } = result;
   const toast = useToast();
@@ -42,10 +44,10 @@ export function LessonComplete({ result, total }: { result: CompleteResult; tota
   }, []);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Enter" && router.push("/");
+    const onKey = (e: KeyboardEvent) => e.key === "Enter" && router.push(home);
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [router]);
+  }, [router, home]);
 
   return (
     <div className="complete">
@@ -56,7 +58,8 @@ export function LessonComplete({ result, total }: { result: CompleteResult; tota
       </div>
       <div className="complete-body">
         <Mascot mood="cheer" size={170} />
-        <h1 className="complete-title">{practice ? "Practice complete!" : "Lesson complete!"}</h1>
+        <h1 className="complete-title">{practice ? "Practice complete!" : legendary ? "Legendary!" : "Lesson complete!"}</h1>
+        {legendary && !result.already_completed && <p className="complete-note">You beat the clock.</p>}
         {result.already_completed && <p className="complete-note">You already finished this one, so nothing was added twice.</p>}
         <div className="stat-row">
           {practice ? (
@@ -80,24 +83,24 @@ export function LessonComplete({ result, total }: { result: CompleteResult; tota
               {learner.current_streak > 0 ? `${pluralize(learner.current_streak, "day")} streak` : "Start your streak tomorrow"}
             </li>
             <li>
-              <Icon name="target" size={22} style={{ color: "var(--yellow-dark)" }} />
+              <Icon name="target" size={22} style={{ color: "var(--yellow-ink)" }} />
               {learner.daily_xp >= learner.daily_goal_xp ? "Daily goal reached!" : `${learner.daily_xp}/${learner.daily_goal_xp} XP of your daily goal`}
             </li>
-            {result.skill_completed && (
+            {result.skill_completed && !legendary && (
               <li>
-                <Icon name="crown" size={22} style={{ color: "var(--yellow-dark)" }} /> Skill complete!
+                <Icon name="crown" size={22} style={{ color: "var(--yellow-ink)" }} /> Skill complete!
               </li>
             )}
             {result.new_achievements.map((a) => (
               <li key={a.code} className="is-achievement">
-                <Icon name={a.icon} size={22} style={{ color: "var(--purple-dark)" }} /> Achievement unlocked: {a.title}
+                <Icon name={a.icon} size={22} style={{ color: "var(--purple-ink)" }} /> Achievement unlocked: {a.title}
               </li>
             ))}
           </ul>
         )}
       </div>
       <div className="complete-footer">
-        <Button block onClick={() => router.push("/")} autoFocus>Continue</Button>
+        <Button block onClick={() => router.push(home)} autoFocus>Continue</Button>
       </div>
     </div>
   );

@@ -17,12 +17,14 @@ export function useLessonSession(lessonId: number, kind: AttemptKind) {
   const lastRequest = useRef<{ key: string; id: string } | null>(null);
   const phaseName = state.phase.name;
   const attemptId = state.attempt?.attempt_id;
+  const attemptLessonId = state.attempt?.lesson_id ?? lessonId;
 
   // loading -> question
   useEffect(() => {
     if (phaseName !== "loading") return;
     let cancelled = false;
-    api.startAttempt(lessonId, kind).then(
+    // a legendary run is started by its own endpoint: the server picks the lesson and owns the clock
+    (kind === "legendary" ? api.startLegendary() : api.startAttempt(lessonId, kind)).then(
       (attempt) => {
         if (cancelled) return;
         dispatch({ type: "LOADED", attempt });
@@ -39,7 +41,7 @@ export function useLessonSession(lessonId: number, kind: AttemptKind) {
   useEffect(() => {
     if (phaseName !== "completing" || attemptId === undefined) return;
     let cancelled = false;
-    api.completeLesson(lessonId, attemptId).then(
+    api.completeLesson(attemptLessonId, attemptId).then(
       (result) => {
         if (cancelled) return;
         dispatch({ type: "COMPLETE_OK", result });
@@ -50,7 +52,7 @@ export function useLessonSession(lessonId: number, kind: AttemptKind) {
     return () => {
       cancelled = true;
     };
-  }, [phaseName, lessonId, attemptId, setLearner]);
+  }, [phaseName, attemptLessonId, attemptId, setLearner]);
 
   const setDraft = useCallback((answer: AnswerPayload | null) => dispatch({ type: "DRAFT", answer }), []);
 

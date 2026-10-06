@@ -19,6 +19,13 @@ def get_user_by_username(db: Session, username: str) -> User:
     return user
 
 
+def refresh(db: Session, user: User, clock: Clock, settings: Settings) -> LearnerOut:
+    """Snapshot + persist lazy heart regeneration (the only write a plain read can cause)."""
+    out = snapshot(db, user, clock, settings)
+    db.commit()
+    return out
+
+
 def snapshot(db: Session, user: User, clock: Clock, settings: Settings) -> LearnerOut:
     """Apply lazy heart regeneration (mutates, caller commits) and project the learner state."""
     stats = user.stats

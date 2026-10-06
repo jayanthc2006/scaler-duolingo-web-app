@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.clock import Clock
 from app.core.config import Settings
 from app.core.errors import ConflictError, NotFoundError
+from app.db.session import begin_write
 from app.models import (
     ExerciseAttempt,
     Lesson,
@@ -16,7 +17,7 @@ from app.models import (
 )
 from app.schemas.learner import AchievementOut
 from app.schemas.lesson import CompleteOut
-from app.services import achievements, gamification
+from app.services import achievements, gamification, legendary
 from app.services import learner as learner_service
 
 
@@ -91,6 +92,7 @@ def _response(
 def complete_attempt(
     db: Session, user: User, lesson_id: int, attempt_id: int, clock: Clock, settings: Settings
 ) -> CompleteOut:
+    begin_write(db)  # serialise read-decide-write (see db/session.py)
     lesson = db.get(Lesson, lesson_id)
     if lesson is None:
         raise NotFoundError("Lesson not found.", code="lesson_not_found")
@@ -102,11 +104,16 @@ def complete_attempt(
         return _response(db, user, attempt, lesson, clock, settings,
                          already=True, new_achievements=[], hearts_gained=0)
 
-    _verify_all_solved(db, attempt, lesson)
+    if attempt.status == "failed":  # a timed-out / replaced legendary run can never pay out
+        raise ConflictError("This attempt was closed without a win.", code="attempt_closed")
 
     now, today = clock.now(), clock.today()
-    bonus = settings.xp_lesson_complete if attempt.kind == "lesson" else 0
-    gems = settings.gems_per_lesson if attempt.kind == "lesson" else 0
+    if attempt.kind == "legendary":
+        legendary.check_can_complete(db, attempt, now, settings)  # deadline + once-per-lesson, server-side
+    _verify_all_solved(db, attempt, lesson)
+
+    bonus = {"lesson": settings.xp_lesson_complete, "legendary": settings.legendary_xp}.get(attempt.kind, 0)
+    gems = {"lesson": settings.gems_per_lesson, "legendary": settings.legendary_gems}.get(attempt.kind, 0)
 
     # Compare-and-set: exactly one concurrent request can flip in_progress -> completed.
     claimed = db.execute(
@@ -129,6 +136,11 @@ def complete_attempt(
         before = stats.hearts
         gamification.add_hearts(stats, settings.practice_hearts_reward, now, settings)
         hearts_gained = stats.hearts - before
+    elif attempt.kind == "legendary":  # a bonus: no skill progress, but real XP for streak and league
+        stats.gems += gems
+        gamification.record_activity(db, stats, today, xp=bonus)
+        db.flush()
+        new_achievements = achievements.award_new(db, user, now)
     else:
         _bump_skill_progress(db, user.id, lesson, now)
         stats.gems += gems

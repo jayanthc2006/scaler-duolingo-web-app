@@ -13,13 +13,13 @@
 .btn:hover:not(:disabled) { filter: brightness(1.06); }
 .btn:active:not(:disabled) { transform: translateY(4px); box-shadow: 0 0 0 var(--b-edge); }
 .btn:disabled, .btn[aria-disabled="true"] {
-  --b-bg: var(--line); --b-edge: #d0d0d0; --b-fg: var(--faint); cursor: not-allowed;
+  --b-bg: var(--line); --b-edge: var(--disabled-edge); --b-fg: var(--faint); cursor: not-allowed;
 }
 .btn-block { width: 100%; }
 .btn-blue { --b-bg: var(--blue); --b-edge: var(--blue-dark); }
 .btn-red { --b-bg: var(--red); --b-edge: var(--red-dark); }
 .btn-ghost {
-  --b-bg: #fff; --b-edge: var(--line); --b-fg: var(--blue-dark);
+  --b-bg: var(--card); --b-edge: var(--line); --b-fg: var(--blue-ink);
   border: 2px solid var(--line); box-shadow: 0 4px 0 var(--line);
 }
 .btn-ghost:active:not(:disabled) { box-shadow: 0 0 0 var(--line); }
@@ -37,7 +37,7 @@
 .pill svg { flex: none; }
 .pill-flame { color: var(--orange); }
 .pill-flame.is-idle svg { color: var(--faint); }
-.pill-xp { color: var(--yellow-dark); }
+.pill-xp { color: var(--yellow-ink); }
 .pill-gem { color: var(--blue); }
 .pill-heart { color: var(--red); }
 .pill-heart.is-empty { color: var(--faint); }
@@ -46,7 +46,7 @@
 
 /* ---------- cards ---------- */
 .card {
-  background: #fff; border: 2px solid var(--line); border-radius: var(--radius-lg); padding: 18px;
+  background: var(--card); border: 2px solid var(--line); border-radius: var(--radius-lg); padding: 18px;
 }
 .card-title { font-size: 18px; font-weight: 800; color: var(--ink); }
 .card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
@@ -86,9 +86,10 @@
 }
 .modal {
   width: min(420px, 100%); max-height: 100%; overflow: auto; text-align: center;
-  background: #fff; border-radius: 24px; padding: 28px 24px 24px;
+  background: var(--card); border-radius: 24px; padding: 28px 24px 24px;
   animation: modal-in 0.35s var(--ease-pop);
 }
+.modal > svg { margin-inline: auto; } /* mascot: svgs are display:block (base reset), so centre the box itself */
 .modal h2 { font-size: 24px; margin: 12px 0 6px; }
 .modal p { color: var(--muted); font-size: 16px; margin-bottom: 20px; }
 .modal-actions { display: grid; gap: 12px; }
@@ -100,7 +101,7 @@
   width: 40px; height: 40px; border-radius: 50%;
   border: 5px solid var(--line); border-top-color: var(--green); animation: spin 0.8s linear infinite;
 }
-.skeleton { background: linear-gradient(90deg, #eee, #f6f6f6, #eee); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 16px; }
+.skeleton { background: linear-gradient(90deg, var(--skeleton-a), var(--skeleton-b), var(--skeleton-a)); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 16px; }
 
 /* ---------- animation ---------- */
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
@@ -119,7 +120,7 @@
 
 /* ---------- toasts ---------- */
 .toast-region { position: fixed; z-index: 80; left: 50%; bottom: 24px; transform: translateX(-50%); display: grid; gap: 8px; width: min(420px, calc(100vw - 24px)); pointer-events: none; }
-.toast { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-radius: 14px; background: var(--ink); color: #fff; font-weight: 800; box-shadow: 0 6px 0 rgba(0, 0, 0, 0.18); animation: rise 0.3s var(--ease-pop); }
+.toast { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-radius: 14px; background: var(--toast-bg); color: #fff; font-weight: 800; box-shadow: 0 6px 0 rgba(0, 0, 0, 0.18); animation: rise 0.3s var(--ease-pop); }
 .toast.is-success svg { color: var(--green); }
 .toast.is-info svg { color: var(--blue); }
 @media (max-width: 719px) { .toast-region { bottom: 88px; } }

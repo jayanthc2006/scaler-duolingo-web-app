@@ -10,9 +10,7 @@ router = APIRouter(prefix="/me", tags=["learner"])
 
 @router.get("", response_model=LearnerOut)
 def get_me(db: DbDep, user: UserDep, clock: ClockDep, settings: SettingsDep) -> LearnerOut:
-    out = learner_service.snapshot(db, user, clock, settings)
-    db.commit()  # persists lazy heart regeneration
-    return out
+    return learner_service.refresh(db, user, clock, settings)
 
 
 @router.get("/stats", response_model=ProfileOut)

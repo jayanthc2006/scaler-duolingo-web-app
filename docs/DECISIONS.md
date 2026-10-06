@@ -61,5 +61,30 @@ React Query/Redux. Only harmless UI hints use browser storage (which skills chan
 **D-16. SQLite in production needs a persistent disk.** See README → Deployment. The app never overwrites existing
 data on boot (`seed_database` is a no-op when a course exists).
 
+**D-18. Write lock before read-decide-write.** Under SQLite's default deferred transactions two requests can read the same
+state and both write (lost update), e.g. parallel wrong answers all seeing "hearts > 0". `begin_write` issues `BEGIN IMMEDIATE`
+at the start of each mutating service so the sequence is serialised. *Rejected:* optimistic version columns (more code, retries)
+and in-process locks (break with several workers). *Trade-off:* writers queue; acceptable for SQLite, which is single-writer anyway.
+
+**D-19. Bounded ids.** Path/body ids are validated to the 64-bit range so oversized values return `422`, not an
+`OverflowError` 500.
+
 **D-17. Accent handling.** Typed answers ignore case, punctuation and the accents on `áéíóúü`, but not `ñ`
 (`ano` ≠ `año`). Documented in API.md; trivial to tighten per exercise.
+
+**D-20. Legendary reuses the lesson engine; the server owns the clock.** A new attempt `kind='legendary'` on a lesson the learner
+already completed, started by its own endpoint (so the generic start cannot mint one). Answers, completion, idempotency and the
+frontend reducer are shared; only the lesson choice, the deadline check and the reward branch are new (`services/legendary.py`).
+*Rejected:* a separate challenge engine/tables (duplicated grading), a client-reported "I finished in time" (forgeable), a
+cross-lesson question pool (would have required relaxing the "exercise belongs to the attempt's lesson" check in the core).
+*Trade-off:* the challenge is one lesson's six exercises, so it is short; the reward is once per lesson, which bounds farming.
+
+**D-21. Exercise audio = browser `SpeechSynthesis`.** No recorded files, no TTS service, no backend change, graceful when
+unsupported (the button is disabled with an explanation; nothing else changes). Which text is spoken is a pure frontend rule
+(`lib/audio/speakable.ts`): only Spanish text is spoken (so never the English word in a "How do you say..." prompt), and a
+finished answer is read only after the backend has judged it, so audio can never leak a key. *Trade-off:* voice quality depends on the device.
+
+**D-22. Dark mode = tokens + `data-scheme`, not a filter.** `<html data-scheme="light|dark">` (a separate axis from the existing
+`data-theme` unit colours) swaps the CSS variables; surfaces that were hard-coded white now use `--card` / `--bg`, and accent *text*
+uses `--*-ink` tokens that equal the old `-dark` values in light mode (so light mode is unchanged). A tiny inline script sets the
+attribute before first paint (no flash); the choice (Light/Dark/Auto, default Auto) lives in `localStorage`.

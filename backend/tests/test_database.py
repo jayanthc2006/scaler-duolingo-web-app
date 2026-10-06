@@ -1,4 +1,6 @@
 """Database-level guarantees: constraints are the last line of defence behind the services."""
+from datetime import timedelta
+
 import pytest
 from sqlalchemy import func, select, text
 from sqlalchemy.exc import IntegrityError
@@ -93,3 +95,39 @@ def test_state_survives_engine_restart(tmp_path, settings):
         seed_database(s, START, settings)  # re-running the seed must not reset progress
         assert s.get(UserStats, 1).xp_total == 999
     engine2.dispose()
+
+
+def test_seed_matches_the_documented_pristine_state(db):
+    from collections import defaultdict
+
+    from app.models import (
+        Achievement,
+        Course,
+        DailyActivity,
+        ExerciseAttempt,
+        Lesson,
+        Skill,
+        Unit,
+        UserAchievement,
+        UserSkillProgress,
+    )
+
+    count = lambda model: db.scalar(select(func.count()).select_from(model))  # noqa: E731
+    assert (count(Course), count(Unit), count(Skill), count(Lesson), count(Exercise)) == (1, 3, 9, 18, 108)
+    assert count(Achievement) == 9 and count(User) == 9  # alex + 8 rivals
+    assert count(ExerciseAttempt) == 0  # no leftover answers
+
+    types_by_lesson = defaultdict(set)
+    for lid, kind in db.execute(select(Exercise.lesson_id, Exercise.type)):
+        types_by_lesson[lid].add(kind)
+    assert len(types_by_lesson) == 18
+    assert all(len(kinds) == 5 for kinds in types_by_lesson.values())  # every lesson exercises all five types
+
+    alex = db.scalar(select(User).where(User.username == "alex"))
+    s = alex.stats
+    assert (s.xp_total, s.gems, s.hearts, s.current_streak, s.longest_streak) == (124, 450, 5, 4, 6)
+    assert s.last_activity_date == (START - timedelta(days=1)).date()
+    assert db.scalar(select(func.sum(DailyActivity.xp_earned)).where(DailyActivity.user_id == alex.id)) == 124
+    done = db.scalar(select(func.count()).select_from(UserSkillProgress).where(UserSkillProgress.user_id == alex.id))
+    assert done == 1  # only Greetings
+    assert db.scalar(select(func.count()).select_from(UserAchievement).where(UserAchievement.user_id == alex.id)) == 4

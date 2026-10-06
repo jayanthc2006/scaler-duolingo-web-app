@@ -201,6 +201,7 @@ ACHIEVEMENTS = [
     ("xp_500", "XP Hunter", "Earn 500 XP", "bolt", "xp_total", 500),
     ("skill_1", "Skill Unlocked", "Complete a skill", "trophy", "skills", 1),
     ("skill_5", "Skill Collector", "Complete 5 skills", "trophy", "skills", 5),
+    ("legendary_1", "Legend", "Win a Legendary challenge", "crown", "legendaries", 1),
 ]
 
 # display name, avatar color, XP over the last week (spread over several days)

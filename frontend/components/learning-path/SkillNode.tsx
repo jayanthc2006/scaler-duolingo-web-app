@@ -10,6 +10,8 @@ interface Props {
   y: number;
   open: boolean;
   justChanged: boolean;
+  /** x of this node minus x of the previous node in the unit (px); lets the bubble stay clear of its caption */
+  bubbleDx?: number;
   onToggle: () => void;
 }
 
@@ -20,7 +22,7 @@ const STATUS_TEXT: Record<Skill["status"], string> = {
   completed: "completed",
 };
 
-export function SkillNode({ skill, x, y, open, justChanged, onToggle }: Props) {
+export function SkillNode({ skill, x, y, open, justChanged, bubbleDx, onToggle }: Props) {
   const { status } = skill;
   const locked = status === "locked";
   const done = status === "completed";
@@ -29,7 +31,14 @@ export function SkillNode({ skill, x, y, open, justChanged, onToggle }: Props) {
 
   return (
     <div className="path-node" style={{ left: x, top: y }}>
-      <div className={`node-wrap${skill.is_current ? " has-bubble" : ""}`}>
+      <div
+        className={`node-wrap${skill.is_current ? " has-bubble is-current" : ""}`}
+        style={
+          bubbleDx === undefined
+            ? undefined
+            : { ["--bubble-dx" as string]: `${Math.abs(bubbleDx)}px`, ["--bubble-dir" as string]: bubbleDx < 0 ? -1 : 1 }
+        }
+      >
         {skill.is_current && <span className="start-bubble" aria-hidden>{status === "in_progress" ? "CONTINUE" : "START"}</span>}
         {showRing && <ProgressRing value={skill.lessons_completed / skill.lesson_count} />}
         {done && <ProgressRing value={1} />}

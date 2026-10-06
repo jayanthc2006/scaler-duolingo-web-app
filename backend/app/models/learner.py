@@ -74,7 +74,8 @@ class UserSkillProgress(Base):
 
 
 class LessonAttempt(Base):
-    """One run through a lesson. kind='practice' attempts only refill a heart (no XP)."""
+    """One run through a lesson. kind='practice' only refills a heart (no XP); kind='legendary' is the
+    timed challenge (status may also become 'failed')."""
 
     __tablename__ = "lesson_attempts"
     __table_args__ = (
@@ -95,13 +96,21 @@ class LessonAttempt(Base):
             unique=True,
             sqlite_where=text("kind = 'lesson' AND status = 'completed'"),
         ),
+        # a legendary reward can be won at most once per lesson
+        Index(
+            "uq_attempt_completed_legendary",
+            "user_id",
+            "lesson_id",
+            unique=True,
+            sqlite_where=text("kind = 'legendary' AND status = 'completed'"),
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     lesson_id: Mapped[int] = mapped_column(ForeignKey("lessons.id"))
-    kind: Mapped[str] = mapped_column(String(12), default="lesson")
-    status: Mapped[str] = mapped_column(String(16), default="in_progress")
+    kind: Mapped[str] = mapped_column(String(12), default="lesson")  # lesson | practice | legendary
+    status: Mapped[str] = mapped_column(String(16), default="in_progress")  # in_progress | completed | failed
     xp_awarded: Mapped[int] = mapped_column(default=0)  # completion bonus only
     gems_awarded: Mapped[int] = mapped_column(default=0)
     mistakes: Mapped[int] = mapped_column(default=0)
@@ -161,7 +170,7 @@ class Achievement(Base):
     title: Mapped[str] = mapped_column(String(60))
     description: Mapped[str] = mapped_column(String(160))
     icon: Mapped[str] = mapped_column(String(24))
-    metric: Mapped[str] = mapped_column(String(24))  # xp_total | current_streak | lessons | skills
+    metric: Mapped[str] = mapped_column(String(24))  # xp_total | current_streak | lessons | skills | legendaries
     threshold: Mapped[int]
 
 

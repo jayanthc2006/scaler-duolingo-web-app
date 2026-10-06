@@ -3,7 +3,7 @@
 export type SkillStatus = "locked" | "available" | "in_progress" | "completed";
 export type LessonStatus = "locked" | "available" | "completed";
 export type UnitColor = "green" | "blue" | "purple" | "orange" | "pink";
-export type AttemptKind = "lesson" | "practice";
+export type AttemptKind = "lesson" | "practice" | "legendary";
 
 export interface Learner {
   id: number;
@@ -135,6 +135,18 @@ export interface Attempt {
   exercises: Exercise[];
   solved_exercise_ids: number[];
   learner: Learner;
+  /** legendary attempts only */
+  time_limit_seconds?: number | null;
+  seconds_left?: number | null;
+}
+
+export interface LegendaryStatus {
+  available: boolean;
+  remaining: number;
+  conquered: number;
+  time_limit_seconds: number;
+  reward_xp: number;
+  reward_gems: number;
 }
 
 export interface AnswerResult {

@@ -44,7 +44,7 @@ users 1─1 user_stats     │         └────────────�
 | `users` | learner identity (`username` unique, `display_name`, `avatar_color`) | |
 | `user_stats` | 1:1 counters: `xp_total`, `hearts`, `hearts_updated_at` (regen anchor), `gems`, `current_streak`, `longest_streak`, `last_activity_date`, `daily_goal_xp` | CHECK hearts ≥ 0, gems ≥ 0, xp ≥ 0, `longest_streak ≥ current_streak ≥ 0` |
 | `user_skill_progress` | `lessons_completed`, `completed_at` per (user, skill) | UNIQUE(`user_id`,`skill_id`); CHECK ≥ 0 |
-| `lesson_attempts` | one run through a lesson: `kind` (`lesson`/`practice`), `status` (`in_progress`/`completed`), `mistakes`, `xp_awarded` (completion bonus), `gems_awarded`, timestamps | partial unique indexes (below) |
+| `lesson_attempts` | one run through a lesson: `kind` (`lesson`/`practice`/`legendary`), `status` (`in_progress`/`completed`/`failed`), `mistakes`, `xp_awarded` (completion bonus), `gems_awarded`, timestamps | partial unique indexes (below) |
 | `exercise_attempts` | every submitted answer: `request_id`, `is_correct`, `heart_lost`, `xp_awarded`, `submitted_answer` JSON | UNIQUE(`attempt_id`,`request_id`); partial unique index (below) |
 | `daily_activity` | XP and lessons per (user, UTC date) | UNIQUE(`user_id`,`activity_date`) |
 | `achievements` | data-driven badges: `code`, `metric`, `threshold` | `code` unique |
@@ -59,6 +59,7 @@ Child tables of `users` use `ON DELETE CASCADE`; `lesson_attempts.lesson_id` and
 | --- | --- |
 | `uq_attempt_open` UNIQUE(`user_id`,`lesson_id`,`kind`) **WHERE status='in_progress'** | at most one open attempt per lesson → "start" is resumable and cannot duplicate; also serves lookup of the open attempt |
 | `uq_attempt_completed_lesson` UNIQUE(`user_id`,`lesson_id`) **WHERE kind='lesson' AND status='completed'** | a lesson can be completed exactly once per learner (DB-level backstop against double XP) |
+| `uq_attempt_completed_legendary` UNIQUE(`user_id`,`lesson_id`) **WHERE kind='legendary' AND status='completed'** | a legendary reward is paid at most once per lesson (the service checks first; this is the backstop) |
 | `uq_exercise_solved` UNIQUE(`attempt_id`,`exercise_id`) **WHERE is_correct=1** | an exercise is solved at most once per attempt → per-answer XP cannot be double-awarded even under a race |
 | `ix_exercise_attempts_attempt_id` | completion check and resume read all answers of an attempt |
 | `ix_lesson_attempts_user_id` | profile counts / practice-lesson pick |
@@ -84,7 +85,7 @@ Deterministic (shuffles are seeded from the prompt text; the learner's dates are
 * 1 course (Spanish), 3 units, 9 skills, 18 lessons, 108 exercises (6 per lesson, every type in every lesson)
 * learner `alex`: 124 XP, 450 gems, 5 hearts, 4-day streak last extended *yesterday*, Greetings completed
 * 8 rival learners with weekly XP spread over three days
-* 8 achievements (4 already unlocked by `alex`)
+* 9 achievements (4 already unlocked by `alex`); the 9th, `legendary_1`, unlocks with the first Legendary win
 
 `python -m app.seed` is idempotent (no-op if a course exists); `--reset` drops everything and reseeds.
 
@@ -93,6 +94,11 @@ Deterministic (shuffles are seeded from the prompt text; the learner's dates are
 * Each service call = reads → mutations → **one** commit; exceptions roll back (`get_db`).
 * Completion uses a compare-and-set `UPDATE lesson_attempts SET status='completed' ... WHERE status='in_progress'`;
   only the request whose `rowcount == 1` applies XP/progress/streak. Others replay the stored result.
-* SQLite serialises writers; with WAL + `busy_timeout` concurrent requests queue rather than fail.
-  `tests/test_concurrency.py` fires 8 parallel requests at a file-backed DB to prove this.
+* **Write lock before read-decide-write.** The mutating services (`answers.submit_answer`, `completion.complete_attempt`,
+  `hearts.refill_hearts`, `attempts.start_attempt`) first call `db.session.begin_write()`, which issues `BEGIN IMMEDIATE`.
+  Without it two requests could read the same hearts/XP and both write back (a lost update: parallel wrong answers each
+  saw "hearts > 0"). Waiters queue for up to `busy_timeout`; the lock is released when the request's session ends.
+* `tests/test_concurrency.py` fires 16 parallel requests at a file-backed DB: identical completions, identical answers,
+  *distinct* wrong answers (exactly 5 hearts lost, never fewer), parallel correct answers (no lost XP) and parallel refills
+  (gems charged once).
 * Limitation: SQLite means a single writer node. Scaling out needs Postgres (see INTERVIEW_NOTES.md).

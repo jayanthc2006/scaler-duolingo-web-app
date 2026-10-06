@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.clock import Clock
 from app.core.config import Settings
 from app.core.errors import ConflictError, ForbiddenError, NotFoundError
+from app.db.session import begin_write
 from app.models import Exercise, ExerciseAttempt, LessonAttempt, User
 from app.schemas.lesson import AnswerIn, AnswerOut
 from app.services import evaluation, gamification, progress
@@ -49,6 +50,7 @@ def _result(
 def submit_answer(
     db: Session, user: User, exercise_id: int, body: AnswerIn, clock: Clock, settings: Settings
 ) -> AnswerOut:
+    begin_write(db)  # serialise read-decide-write (see db/session.py)
     exercise = get_exercise(db, exercise_id)
     attempt = _load_attempt(db, user, body.attempt_id, exercise)
 
