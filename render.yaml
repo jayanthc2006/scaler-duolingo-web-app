@@ -1,0 +1,22 @@
+# Render blueprint for the API. NOT yet deployed/verified - see README "Deployment".
+# A persistent disk is required so SQLite survives restarts and redeploys; Render only offers
+# disks on paid instance types, and a disk pins the service to a single instance (fine for SQLite).
+services:
+  - type: web
+    name: sprout-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: starter
+    healthCheckPath: /api/health
+    disk:
+      name: sprout-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: DATABASE_URL
+        value: sqlite:////data/app.db
+      - key: AUTO_SEED
+        value: "1"
+      - key: CORS_ORIGINS
+        sync: false # set to your Vercel URL, e.g. https://sprout.vercel.app

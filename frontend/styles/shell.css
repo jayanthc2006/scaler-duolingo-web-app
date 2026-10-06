@@ -1,0 +1,103 @@
+.skip-link {
+  position: absolute; left: 8px; top: -60px; z-index: 100; background: var(--ink); color: #fff;
+  padding: 10px 16px; border-radius: 12px; font-weight: 800;
+}
+.skip-link:focus { top: 8px; }
+
+.shell { display: grid; grid-template-columns: 256px minmax(0, 1fr); min-height: 100dvh; }
+.shell-main { min-width: 0; }
+
+/* ---------- navigation ---------- */
+.nav {
+  position: sticky; top: 0; height: 100dvh; padding: 20px 14px; border-right: 2px solid var(--line);
+  display: flex; flex-direction: column; gap: 20px; background: #fff;
+}
+.brand { display: flex; align-items: center; gap: 10px; padding: 4px 12px 12px; color: var(--green); font-weight: 900; font-size: 30px; letter-spacing: -0.5px; }
+.brand-mark {
+  display: grid; place-items: center; width: 36px; height: 36px; border-radius: 12px;
+  background: var(--green); color: #fff; box-shadow: 0 3px 0 var(--green-dark); transform: rotate(-8deg);
+}
+.nav-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.nav-item {
+  display: flex; align-items: center; gap: 16px; padding: 10px 14px; border-radius: 14px;
+  border: 2px solid transparent; color: var(--muted); font-weight: 800; font-size: 15px;
+  text-transform: uppercase; letter-spacing: 0.8px;
+}
+.nav-item svg { color: var(--faint); flex: none; }
+.nav-item:hover { background: var(--surface); }
+.nav-item.is-active { background: var(--blue-soft); border-color: var(--blue); color: var(--blue-dark); }
+.nav-item.is-active svg { color: var(--blue); }
+
+/* ---------- top bar ---------- */
+.topbar { position: sticky; top: 0; z-index: 30; height: var(--topbar-h); background: rgba(255, 255, 255, 0.96); backdrop-filter: blur(6px); }
+.topbar-inner { height: 100%; max-width: 1060px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.course-chip { display: flex; align-items: center; gap: 10px; padding: 6px 12px 6px 6px; border: 2px solid var(--line); border-radius: 14px; font-weight: 800; color: var(--ink); }
+.course-flag { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 10px; background: linear-gradient(135deg, #ff5a5f 0 50%, #ffc800 50% 100%); color: #fff; font-size: 12px; font-weight: 900; text-shadow: 0 1px 0 rgba(0,0,0,.25); }
+.topbar-stats { display: flex; align-items: center; gap: 2px; }
+
+/* ---------- body ---------- */
+.shell-body { display: flex; justify-content: center; gap: 32px; padding: 0 24px 48px; max-width: 1060px; margin: 0 auto; }
+.shell-content { flex: 0 1 620px; min-width: 0; }
+.shell-rail { flex: 0 0 340px; position: sticky; top: calc(var(--topbar-h) + 8px); align-self: flex-start; display: grid; gap: 16px; padding-top: 8px; }
+.only-narrow { display: none; }
+
+/* ---------- daily goal ---------- */
+.goal-row { display: flex; align-items: center; gap: 14px; }
+.goal-badge { display: grid; place-items: center; flex: none; width: 52px; height: 52px; border-radius: 16px; background: var(--yellow-soft); color: var(--yellow-dark); }
+.goal-badge.is-done { background: var(--green); color: #fff; animation: pop 0.5s var(--ease-pop); }
+.goal-main { flex: 1; min-width: 0; display: grid; gap: 8px; }
+.goal-text { font-size: 14px; color: var(--muted); }
+.goal-bar { display: flex; align-items: center; gap: 10px; }
+.goal-bar .bar { flex: 1; }
+.goal-count { font-size: 13px; color: var(--muted); min-width: 40px; text-align: right; }
+.goal-target { color: var(--yellow-dark); }
+
+/* ---------- leaderboard rows ---------- */
+.lb-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.lb-row { display: flex; align-items: center; gap: 14px; padding: 10px 14px; border-radius: 14px; }
+.lb-row.is-compact { padding: 6px 8px; gap: 10px; }
+.lb-row.is-me { background: var(--blue-soft); box-shadow: inset 0 0 0 2px var(--blue); }
+.lb-rank { width: 28px; text-align: center; font-weight: 900; color: var(--muted); font-size: 17px; }
+.lb-rank.medal-gold { color: var(--yellow-dark); }
+.lb-rank.medal-silver { color: #8a8f98; }
+.lb-rank.medal-bronze { color: #c47a3b; }
+.lb-name { flex: 1; min-width: 0; font-weight: 800; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; gap: 8px; }
+.lb-you { font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; background: var(--blue); color: #fff; padding: 2px 8px; border-radius: 8px; }
+.lb-xp { color: var(--muted); font-weight: 800; white-space: nowrap; }
+.lb-gap { text-align: center; color: var(--faint); letter-spacing: 3px; line-height: 1; }
+.is-compact .avatar { width: 36px; height: 36px; font-size: 15px; }
+
+/* ---------- responsive ---------- */
+@media (max-width: 1099px) {
+  .shell-rail { display: none; }
+  .only-narrow { display: block; }
+  .shell-content { flex-basis: 640px; }
+}
+@media (max-width: 1023px) {
+  .shell { grid-template-columns: 88px minmax(0, 1fr); }
+  .nav { padding: 20px 10px; align-items: center; }
+  .brand { padding: 4px 0 12px; }
+  .brand-name, .nav-label { display: none; }
+  .nav-item { padding: 12px; justify-content: center; }
+}
+@media (max-width: 719px) {
+  .shell { grid-template-columns: minmax(0, 1fr); padding-bottom: 76px; }
+  .nav {
+    position: fixed; z-index: 40; inset: auto 0 0 0; height: 68px; padding: 6px 8px;
+    border-right: 0; border-top: 2px solid var(--line); flex-direction: row; justify-content: center;
+  }
+  .brand { display: none; }
+  .nav-list { grid-auto-flow: column; grid-auto-columns: 1fr; width: 100%; max-width: 440px; }
+  .nav-item { height: 54px; padding: 0; justify-content: center; }
+  .topbar-inner { padding: 0 12px; }
+  .course-name { display: none; }
+  .course-chip { padding: 6px; }
+  .topbar-stats { gap: 0; }
+  .pill { padding: 6px 6px; font-size: 15px; gap: 4px; }
+  .pill-timer { display: none; }
+  .shell-body { padding: 0 12px 24px; gap: 0; }
+}
+@media (max-width: 380px) {
+  .pill { padding: 6px 4px; font-size: 14px; }
+  .pill svg { width: 20px; height: 20px; }
+}
