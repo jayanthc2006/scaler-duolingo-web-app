@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { useToast } from "@/components/ui/Toast";
@@ -38,7 +38,10 @@ export function LessonComplete({ result, total }: { result: CompleteResult; tota
   const { learner } = result;
   const toast = useToast();
 
+  const announced = useRef(false); // survives StrictMode's dev-only mount/unmount/mount, so each toast fires once
   useEffect(() => {
+    if (announced.current) return;
+    announced.current = true;
     result.new_achievements.forEach((a) => toast(`Achievement unlocked: ${a.title}`, "info"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

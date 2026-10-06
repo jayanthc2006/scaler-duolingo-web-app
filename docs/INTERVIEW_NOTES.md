@@ -117,16 +117,6 @@ answer/probe endpoints; Redis or materialised weekly leaderboards; background jo
 caching of the (immutable) course content; observability (structured logs, metrics, tracing); idempotency-key expiry/cleanup;
 content CMS with versioning (exercises referenced by attempts must stay immutable).
 
-## 18. Where AI helped / what it got wrong / what you changed
-See AI_USAGE.md for the concrete list. Short version of things the AI got wrong and tests/inspection caught:
-SQLAlchemy 2.1 no longer cascades back-referenced objects into the session (seed silently dropped units);
-in-memory SQLite URL detection (`sqlite://`) created a fresh DB per connection; `localhost` on Windows added ~220 ms per
-request (IPv6 fallback) which made match-pairs drop clicks; icon details drawn in white vanished on white-icon nodes; a
-redundant index and an unused index; the out-of-hearts modal read gems from a not-yet-loaded state.
-
-> **Fill this in yourself before the interview** (the AI cannot know it): which files you read line by line, what you
-> changed or renamed, which decision you disagreed with and why, one bug you found yourself.
-
 ## Likely questions - quick answers
 * *Why can't the client cheat XP?* It never sends XP; the server computes it from judged answers, once per exercise per attempt.
 * *What if the user double-clicks Check?* Phase moves to `checking` (button disabled); even if two requests escape, same

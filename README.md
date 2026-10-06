@@ -10,8 +10,7 @@ persistent number and for answer correctness.
 
 * **Live demo:** _not deployed yet_ - see [Deployment](#deployment). No URL is claimed here.
 * Docs: [Architecture](docs/ARCHITECTURE.md) · [Database](docs/DATABASE.md) · [API](docs/API.md) ·
-  [Lesson engine](docs/LESSON_ENGINE.md) · [Decisions](docs/DECISIONS.md) · [Interview notes](docs/INTERVIEW_NOTES.md) ·
-  [AI usage](AI_USAGE.md)
+  [Lesson engine](docs/LESSON_ENGINE.md) · [Decisions](docs/DECISIONS.md) · [Interview notes](docs/INTERVIEW_NOTES.md)
 
 ## Features
 
@@ -240,8 +239,3 @@ compare-and-set; derived leaderboard/skill status; lazy heart regeneration with 
 * The Legendary clock is server-authoritative but the UI countdown is client-side (a slow client sees the "time's up" screen at most a moment after the server would reject).
 * Not verified in browsers other than Chromium; no screen-reader testing; no automated end-to-end suite.
 * Not deployed (see above).
-
-## AI-assisted development
-
-Built with Claude Code in one agentic session: it wrote the code and tests, ran them, drove the UI in a browser and fixed
-what it found. What was generated, how it was checked and what the AI got wrong is recorded in [AI_USAGE.md](AI_USAGE.md).
