@@ -48,7 +48,7 @@ Every error uses one shape (including validation and unknown routes):
 | --- | --- |
 | `POST /api/lessons/{id}/attempts` `{kind: "lesson"\|"practice"}` | start **or resume** the open attempt → `{attempt_id, exercises, solved_exercise_ids, learner}`. `403 lesson_locked`, `409 lesson_already_completed` / `out_of_hearts` (lesson kind) |
 | `POST /api/exercises/{id}/answer` `{attempt_id, request_id, answer}` | judge one answer (below) |
-| `POST /api/exercises/{id}/check-pair` `{left_id, right_id}` | side-effect-free probe used by match-pairs → `{match}`; `403 lesson_locked` for locked lessons |
+| `POST /api/exercises/{id}/check-pair` `{attempt_id, request_id, left_id, right_id}` | judge one completed pair in match-pairs → `{match, heart_lost, out_of_hearts, learner}`. A correct pair changes nothing; a wrong pair is a mistake like a wrong answer: **−1 heart** in a real lesson (free in practice / legendary), recorded under `request_id` so a retry or duplicate is a replay, not a second charge. `403 lesson_locked`, `404 attempt_not_found`, `409 out_of_hearts` (0 hearts), `409 attempt_closed` |
 | `POST /api/lessons/{id}/complete` `{attempt_id}` | verify + apply completion (below) |
 
 **Answer bodies** (exactly one field is read, by exercise type):
@@ -60,7 +60,7 @@ Every error uses one shape (including validation and unknown routes):
 | `match_pairs` | `{"pairs": [{"left_id":"l0","right_id":"r2"}, ...]}` |
 | `fill_blank`, `type_answer` | `{"text": "soy"}` |
 
-Text comparison ignores case, surrounding/duplicate whitespace, `¿?¡!.,;:` and the accents on `áéíóúü` (but **not** `ñ`).
+Text comparison ignores case, surrounding/duplicate whitespace, `¿?¡!.,;:` and the accents on `áéíóúü`. For typed and fill-in answers it also treats `ñ` as `n` (so `pequena` is accepted for `pequeña`); word-bank tiles (translate), multiple choice and match pairs are compared exactly.
 
 **Answer response**
 ```json
@@ -78,15 +78,16 @@ exercise of the lesson has no correct answer in this attempt.
 ### Legendary challenge (timed)
 | Method & path | Description |
 | --- | --- |
-| `GET /api/legendary` | `{available, remaining, conquered, time_limit_seconds, reward_xp, reward_gems}`: `remaining` = completed lessons that have not paid a legendary reward yet |
+| `GET /api/legendary` | `{available, remaining, conquered, time_limit_seconds, reward_xp, reward_gems, wrong_answer_penalty_seconds}`: `remaining` = completed lessons that have not paid a legendary reward yet |
 | `POST /api/legendary/start` | start **or resume** the timed run. The server picks the lesson (first completed, not-yet-conquered lesson in path order). Same response as `/attempts` plus `time_limit_seconds` and `seconds_left`. `409 legendary_unavailable` if no lesson qualifies |
+| `POST /api/legendary/{attempt_id}/end` | **explicit End Session**: abandons that attempt (`{attempt_id, status: "abandoned"}`), terminal and idempotent: an attempt that is already over (`completed` / `failed` / `abandoned`) is reported as it is and never reopened. `404` for an unknown attempt, another learner's, or a non-legendary one |
 
-Answers go through the normal `POST /exercises/{id}/answer` (free mistakes: no hearts, no XP) and the win is claimed with the normal
+Answers go through the normal `POST /exercises/{id}/answer` (no hearts, no XP) and `POST /exercises/{id}/check-pair`. **Each wrong answer or wrong pair costs a fixed time penalty** (`LEGENDARY_WRONG_ANSWER_PENALTY_SECONDS`, default 5 s): the server derives it from the attempt's recorded wrong answers (one row per distinct `request_id`, so a replay or duplicate never adds a second penalty) and both responses carry `seconds_left`, the authoritative time remaining. Once the penalty-adjusted time is up, answers are refused (`409 legendary_expired`, attempt closed). The win is claimed with the normal
 `POST /lessons/{lesson_id}/complete` (`kind: "legendary"` in the response, `xp_total_gained` = the reward). Rules enforced by the server:
-completion after `time_limit + 3 s` grace → `409 legendary_expired` and the attempt is closed (`failed`); a lesson already won →
+completion after `time_limit + 3 s` grace, counting the accumulated penalties → `409 legendary_expired` and the attempt is closed (`failed`); a lesson already won →
 `409 legendary_already_won`; a closed attempt → `409 attempt_closed`; a repeat of a successful completion is a harmless replay
-(`already_completed: true`, nothing applied). Starting again after expiry closes the old attempt and gives a fresh clock; starting while a
-run is still live resumes it with the remaining seconds. `POST /lessons/{id}/attempts` still only accepts `lesson` / `practice`.
+(`already_completed: true`, nothing applied). Starting again after expiry closes the old attempt and gives a fresh clock; starting after an explicit End Session creates a **new**
+attempt (the ended one is never resumed); starting while a run is still live (e.g. after a refresh) resumes it with the remaining seconds, penalties included. `POST /lessons/{id}/attempts` still only accepts `lesson` / `practice`.
 
 ### Hearts
 | Method & path | Description |
@@ -103,6 +104,6 @@ run is still live resumes it with the remaining seconds. `POST /lessons/{id}/att
 | --- | --- | --- |
 | `POST /api/activity` | **not exposed** | A client-callable "I was active" endpoint would let the browser bump the streak, contradicting "the client is never authoritative for streak". Activity is recorded server-side as a side effect of correct answers and lesson completion (`gamification.record_activity`). |
 | (none) `POST /lessons/{id}/attempts` | added | Gives answers and completion a server-side *context* (an attempt) so completion can be verified, resumed and made idempotent. |
-| (none) `POST /exercises/{id}/check-pair` | added | Match-pairs needs per-tile feedback; the oracle is side-effect free. See DECISIONS D-6. |
+| (none) `POST /exercises/{id}/check-pair` | added | Match-pairs needs per-pair feedback, and a wrong pair must cost a heart server-side. See DECISIONS D-6. |
 | (none) `GET /courses/{id}/path` | added | One round trip returns the whole path with per-user state. `/units` and `/skills` still exist. |
 | (none) `PATCH /me/daily-goal` | added | Makes the Settings daily-goal control real. |

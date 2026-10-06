@@ -51,15 +51,22 @@ class AnswerOut(BaseModel):
     correct_answer: str | None  # shown only after an incorrect answer
     explanation: str | None
     learner: LearnerOut
+    seconds_left: int | None = None  # legendary attempts only: authoritative time left after this answer
 
 
 class PairCheckIn(BaseModel):
+    attempt_id: AttemptId
+    request_id: str = Field(min_length=8, max_length=64, description="client idempotency key for this pair attempt")
     left_id: str = Field(max_length=32)
     right_id: str = Field(max_length=32)
 
 
 class PairCheckOut(BaseModel):
     match: bool
+    heart_lost: bool = False  # a wrong pair in a real lesson costs one heart, like any wrong answer
+    out_of_hearts: bool = False
+    learner: LearnerOut
+    seconds_left: int | None = None  # legendary attempts only
 
 
 class CompleteIn(BaseModel):

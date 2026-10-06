@@ -35,12 +35,20 @@ class InvalidAnswerError(AppError):
     code = "invalid_answer"
 
 
-_ACCENT_MAP = str.maketrans("áéíóúü", "aeiouu")  # n-tilde is deliberately kept: ano != año
+_ACCENT_MAP = str.maketrans("áéíóúü", "aeiouu")
+_ENYE_MAP = str.maketrans("ñ", "n")
 _PUNCT = re.compile(r"[¿?¡!.,;:\"“”]")
 
 
-def normalize(text: str) -> str:
+def normalize(text: str, *, fold_enye: bool = False) -> str:
+    """Comparison form of a text answer: case, punctuation, spacing and the accents on áéíóúü are ignored.
+
+    `fold_enye` also treats ñ as n. It is on only for typed / fill-in answers, where a learner without a Spanish
+    keyboard should not fail on "pequena" for "pequeña"; word-bank tokens (translate) are tiles and keep ñ distinct.
+    """
     text = unicodedata.normalize("NFC", text).casefold().translate(_ACCENT_MAP)
+    if fold_enye:
+        text = text.translate(_ENYE_MAP)
     text = _PUNCT.sub("", text)
     return re.sub(r"\s+", " ", text).strip()
 
@@ -64,7 +72,7 @@ def evaluate(exercise_type: str, key: dict, answer: AnswerPayload) -> bool:
         case "fill_blank" | "type_answer":
             if answer.text is None or not normalize(answer.text):
                 raise InvalidAnswerError("text is required.")
-            return normalize(answer.text) in {normalize(a) for a in key["accepted"]}
+            return normalize(answer.text, fold_enye=True) in {normalize(a, fold_enye=True) for a in key["accepted"]}
         case _:
             raise InvalidAnswerError(f"Unknown exercise type: {exercise_type}")
 

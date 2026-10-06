@@ -27,6 +27,7 @@ def test_status_reports_availability_and_rewards(api, settings):
         "available": True, "remaining": 2, "conquered": 0,  # Alex has finished the two Greetings lessons
         "time_limit_seconds": settings.legendary_seconds,
         "reward_xp": settings.legendary_xp, "reward_gems": settings.legendary_gems,
+        "wrong_answer_penalty_seconds": settings.legendary_wrong_answer_penalty_seconds,
     }
 
 

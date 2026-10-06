@@ -73,8 +73,9 @@ Every exercise component receives `ExerciseViewProps<Payload>`:
 | `type_answer` | speech bubble + text input (autofocus, `lang` set, spellcheck off) | `{text}` |
 
 **Match pairs** keeps its own state (selected tile per side, matched map, wrong flash). When both sides are
-selected it asks `POST /exercises/{id}/check-pair`; a correct pair locks both tiles, a wrong one flashes red (no
-heart cost) and unselects. Only when all pairs are matched does it call `onAnswer`. The final answer is still validated by the
+selected it asks `POST /exercises/{id}/check-pair` (through `useLessonSession.checkPair`, with the attempt id and a per-attempt
+request id); a correct pair locks both tiles, a wrong one flashes red, costs one heart (decided by the server, shown from its
+response; at 0 hearts the lesson enters the out-of-hearts flow) and unselects. Only when all pairs are matched does it call `onAnswer`. The final answer is still validated by the
 backend, so skipping the UI cannot bypass validation.
 
 ## Backend answer handling
@@ -114,16 +115,25 @@ A timed re-run of a lesson the learner already finished. It is deliberately **no
 * `POST /legendary/start` (`services/legendary.py`) only chooses the lesson and creates a `lesson_attempts` row with `kind='legendary'`.
   Everything after that is the normal loop: the same exercises, the same `POST /exercises/{id}/answer` (a legendary attempt behaves like
   practice: free mistakes, no XP), the same `POST /lessons/{id}/complete` and the same `useLessonSession` / reducer. The reducer is unchanged.
-* Time lives on the server: the deadline is `started_at + LEGENDARY_SECONDS`. `complete_attempt` calls `legendary.check_can_complete`
-  before anything is applied: later than the limit + 3 s grace → the attempt is closed as `failed` and `409 legendary_expired`; a lesson
-  already won → `409 legendary_already_won`. The client's countdown (`useDeadline`) only drives the display and the time's-up screen.
+* Time lives on the server: time used = real elapsed time + a fixed penalty (`LEGENDARY_WRONG_ANSWER_PENALTY_SECONDS`, 5 s) per wrong
+  answer or wrong pair. The penalty is *derived* from the attempt's own recorded wrong `exercise_attempts` (`legendary.penalty_seconds`), so it
+  needs no new column, survives a refresh, cannot be set or skipped by the client, and a repeated `request_id` never inserts a second row, so
+  it cannot be charged twice (writes are serialised by `begin_write`). `complete_attempt` calls `legendary.check_can_complete` before anything
+  is applied: used time beyond the limit + 3 s grace → the attempt is closed as `failed` and `409 legendary_expired`; a lesson already won →
+  `409 legendary_already_won`. Answers after the (penalty-adjusted) time is up are refused. Answer responses carry `seconds_left`; the client's
+  countdown (`useDeadline`) restarts from it, so the display follows the server and only drives the time's-up screen.
 * Winning applies one transaction: +20 XP (via `record_activity`, so streak, daily goal and the weekly leaderboard see it) and +10 gems,
   then achievements are re-evaluated. It does **not** touch `user_skill_progress` or hearts, and it does not count as a lesson
   completion (`lessons` metric counts `kind='lesson'` only).
-* Exploit paths: replaying `/complete` is the idempotent replay; a failed attempt can never complete; the generic start endpoint rejects
+* Lifecycle: *refresh* resumes the live attempt (same id, same remaining time, penalties kept); *End Session* (the X) calls
+  `POST /legendary/{id}/end`, which sets the terminal status `abandoned` (no reward, no progress, never resumable; repeating it is harmless), so
+  the next *Start* creates a new attempt with a full clock; *timeout* closes the run as `failed` and *Try again* starts a new one; a *win*
+  completes it (reward once per lesson).
+* Exploit paths: replaying `/complete` is the idempotent replay; a failed or abandoned attempt can never complete; the generic start endpoint rejects
   `kind='legendary'`; the reward is paid once per lesson (service check + partial unique index); slow runs are rejected by the server clock.
 * Frontend: `/legendary` (hub: rules, availability, Start) and `/legendary/play` (the run, full-screen like lessons). The header swaps the
-  hearts for a countdown; at 0 a "Time's up" modal offers *Try again* (a fresh server-timed attempt) or *Back*.
+  hearts for a countdown; at 0 a "Time's up" modal offers *Try again* (a fresh server-timed attempt) or *Back*. The X opens an *End this challenge?* dialog;
+  confirming waits for the server to abandon the attempt before returning to the hub, and a failed request keeps the learner on the run with a retry.
 
 ## Hearts, XP, streak, daily goal (all in `services/gamification.py`)
 

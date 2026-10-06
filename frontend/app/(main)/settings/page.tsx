@@ -5,6 +5,7 @@ import { Icon } from "@/components/ui/Icon";
 import { useToast } from "@/components/ui/Toast";
 import { api } from "@/lib/api/endpoints";
 import { useLearner } from "@/lib/learner/LearnerContext";
+import { useSoundEnabled } from "@/lib/audio/soundPreference";
 import { useThemePreference, type ThemePreference } from "@/lib/theme/theme";
 
 const GOALS = [
@@ -52,9 +53,27 @@ function SoonRow({ label, control }: { label: string; control?: "toggle" }) {
   );
 }
 
+/** A live on/off setting (the placeholder `SoonRow` toggles are visual only). */
+function ToggleRow({ label, checked, onChange }: { label: string; checked: boolean; onChange: (next: boolean) => void }) {
+  return (
+    <div className="setting-row">
+      <span>{label}</span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-label={label}
+        className={`switch is-live${checked ? " is-on" : ""}`}
+        onClick={() => onChange(!checked)}
+      />
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const { learner, setLearner } = useLearner();
   const [theme, setTheme] = useThemePreference();
+  const [soundOn, setSoundOn] = useSoundEnabled();
   const toast = useToast();
   const [saving, setSaving] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -109,7 +128,7 @@ export default function SettingsPage() {
       </Section>
 
       <Section icon="volume" title="Sound">
-        <SoonRow label="Sound effects" control="toggle" />
+        <ToggleRow label="Sound effects" checked={soundOn} onChange={setSoundOn} />
         <SoonRow label="Haptic feedback" control="toggle" />
       </Section>
 

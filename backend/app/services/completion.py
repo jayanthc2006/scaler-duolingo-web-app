@@ -104,7 +104,7 @@ def complete_attempt(
         return _response(db, user, attempt, lesson, clock, settings,
                          already=True, new_achievements=[], hearts_gained=0)
 
-    if attempt.status == "failed":  # a timed-out / replaced legendary run can never pay out
+    if attempt.status in ("failed", "abandoned"):  # a timed-out, replaced or ended legendary run can never pay out
         raise ConflictError("This attempt was closed without a win.", code="attempt_closed")
 
     now, today = clock.now(), clock.today()

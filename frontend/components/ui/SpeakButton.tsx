@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Icon } from "@/components/ui/Icon";
-import { cancelSpeech, isSpeechSupported, speakSpanish } from "@/lib/audio/speech";
+import { cancelSpeech, isSpeechSupported, primeSpeech, speakSpanish } from "@/lib/audio/speech";
 
 const subscribeNothing = () => () => {};
 
@@ -18,15 +18,17 @@ export function SpeakButton({ text, label }: Props) {
   const supported = useSyncExternalStore(subscribeNothing, isSpeechSupported, () => true);
   const [playing, setPlaying] = useState(false);
 
-  useEffect(() => () => cancelSpeech(), []); // leaving the exercise silences it
+  const request = useRef(0); // only the latest click may clear the "playing" state
 
-  const toggle = () => {
-    if (playing) {
-      cancelSpeech();
-      setPlaying(false);
-      return;
-    }
-    setPlaying(speakSpanish(text, () => setPlaying(false)));
+  useEffect(() => {
+    primeSpeech(); // load the voice list now so the first click is prompt
+    return () => cancelSpeech(); // leaving the exercise silences it
+  }, []);
+
+  // every click plays: it restarts the speech (never stacks, and never silently "stops" the way a toggle would)
+  const play = () => {
+    const id = ++request.current;
+    setPlaying(speakSpanish(text, () => request.current === id && setPlaying(false)));
   };
 
   const title = supported ? "Listen" : "Audio isn't available in this browser";
@@ -34,7 +36,7 @@ export function SpeakButton({ text, label }: Props) {
     <button
       type="button"
       className={`speak-btn${playing ? " is-playing" : ""}${label ? " has-label" : ""}`}
-      onClick={toggle}
+      onClick={play}
       disabled={!supported}
       aria-label={supported ? `Listen: ${text}` : title}
       aria-pressed={supported ? playing : undefined}

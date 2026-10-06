@@ -56,7 +56,7 @@ events that are invalid for the phase. 13 unit tests.
 ## 7. Answer validation
 Server-only, per type, in `services/evaluation.py` (pure functions, easily tested). Normalisation rules in API.md.
 * **Why the key is hidden:** the browser is untrusted; devtools shows the whole network response.
-* **Trade-off to volunteer:** the `check-pair` probe (D-6).
+* **Design point to volunteer:** `check-pair` is attempt-scoped and charges a heart per wrong pair, so it is not a free oracle (D-6).
 
 ## 8. XP logic
 Correct answer in a real lesson: +2 (once per exercise per attempt); completion bonus +10; practice: 0. Rules are `Settings`
@@ -100,15 +100,15 @@ same envelope. The frontend `ApiError` exposes `code` (e.g. `out_of_hearts` driv
 * **Legendary**: reuse, don't fork. One new attempt kind, own start endpoint, server-side deadline in `complete_attempt`, reward once per
   lesson. Likely questions: *how do you stop reward farming?* (once per lesson, partial unique index, closed/failed attempts can't complete,
   replay is idempotent); *why not trust the client timer?* (it is display only; the server compares `started_at` with its injected clock +
-  3 s grace); *why free mistakes?* (time is the cost; hearts are a different system).
+  3 s grace); *why no hearts?* (a wrong answer costs a fixed 5 s instead; the penalty is derived from the attempt's recorded wrong answers, so it is idempotent per request id and cannot be dodged by refreshing); *what does End Session do?* (it abandons the attempt on the server, a terminal status, so Start creates a new one; a refresh resumes the live one).
 * **Dark mode**: tokens, not an inversion filter; accents get separate text variants; pre-paint script avoids the flash; `data-scheme` vs
   the existing `data-theme` unit colours.
 * **Audio**: `SpeechSynthesis`; speak what is asked about before answering, and the finished answer only after the server has graded it.
 * **Achievements / leaderboard**: already data-driven / derived; the only addition is a `Legend` badge so the system can be demoed fast.
 
 ## 16. Trade-offs and limitations (be upfront)
-SQLite single writer; no auth (one default learner); UTC days; no migrations; probe endpoint can be brute-forced; one course;
-audio is browser TTS only (no speech recognition); leaderboard is weekly-XP over seeded rivals; Settings are placeholders except the daily goal and theme;
+SQLite single writer; no auth (one default learner); UTC days; no migrations; one course;
+audio is browser TTS only (no speech recognition); leaderboard is weekly-XP over seeded rivals; Settings are placeholders except the daily goal, theme and sound effects;
 deployment not performed by me (see README).
 
 ## 17. What changes at production scale

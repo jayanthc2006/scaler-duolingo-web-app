@@ -147,6 +147,12 @@ export interface LegendaryStatus {
   time_limit_seconds: number;
   reward_xp: number;
   reward_gems: number;
+  wrong_answer_penalty_seconds: number;
+}
+
+export interface LegendaryEnd {
+  attempt_id: number;
+  status: string;
 }
 
 export interface AnswerResult {
@@ -158,6 +164,17 @@ export interface AnswerResult {
   correct_answer: string | null;
   explanation: string | null;
   learner: Learner;
+  /** legendary attempts only: the server's authoritative time left after this answer */
+  seconds_left?: number | null;
+}
+
+/** One completed pair in match-pairs. A wrong pair costs a heart (decided by the server). */
+export interface PairCheckResult {
+  match: boolean;
+  heart_lost: boolean;
+  out_of_hearts: boolean;
+  learner: Learner;
+  seconds_left?: number | null;
 }
 
 export interface Achievement {

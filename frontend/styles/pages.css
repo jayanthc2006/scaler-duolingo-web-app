@@ -51,6 +51,10 @@
 .soon { display: inline-flex; align-items: center; gap: 12px; }
 .soon-text { color: var(--faint); font-size: 13px; font-weight: 700; white-space: nowrap; }
 .switch { position: relative; width: 40px; height: 24px; border-radius: 999px; background: var(--line); opacity: 0.7; flex: none; }
+.switch.is-live { opacity: 1; border: 0; padding: 0; cursor: pointer; transition: background 0.15s; }
+.switch.is-live.is-on { background: var(--green); }
+.switch.is-live::after { transition: transform 0.15s; }
+.switch.is-live.is-on::after { transform: translateX(16px); }
 .switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; }
 .goal-options { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 10px; }
 .theme-options { grid-template-columns: repeat(3, 1fr); }

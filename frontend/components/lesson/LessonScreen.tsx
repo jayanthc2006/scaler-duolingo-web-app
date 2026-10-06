@@ -21,17 +21,33 @@ import type { AttemptKind } from "@/lib/types/api";
 export function LessonScreen({ lessonId, kind }: { lessonId: number; kind: AttemptKind }) {
   const router = useRouter();
   const { learner: sharedLearner } = useLearner();
-  const { state, setDraft, submit, checkPair, continueLesson, retry, refillHearts } = useLessonSession(lessonId, kind);
+  const { state, secondsLeft, setDraft, submit, checkPair, continueLesson, retry, refillHearts, endLegendary } =
+    useLessonSession(lessonId, kind);
   const toast = useToast();
   const [quitOpen, setQuitOpen] = useState(false);
+  const [ending, setEnding] = useState(false);
+  const [endError, setEndError] = useState<string | null>(null);
   const { phase } = state;
   const exercise = currentExercise(state);
   const result = phase.name === "feedback" ? phase.result : null;
   const legendary = kind === "legendary";
   // the server owns the deadline; this clock only drives the display and the time's-up screen
-  const clockMs = useDeadline(legendary ? (state.attempt?.seconds_left ?? null) : null);
+  const clockMs = useDeadline(legendary ? secondsLeft : null);
   const timeUp = legendary && clockMs === 0 && phase.name !== "complete";
   const quit = useCallback(() => router.push(legendary ? "/legendary" : "/"), [router, legendary]);
+  // End Session: a legendary run must be abandoned on the server first, otherwise START would resume it
+  const endSession = useCallback(async () => {
+    if (!legendary) return quit();
+    setEnding(true);
+    setEndError(null);
+    try {
+      await endLegendary();
+      router.push("/legendary");
+    } catch (e) {
+      setEndError(e instanceof Error ? e.message : "Could not end the challenge. Please try again.");
+      setEnding(false);
+    }
+  }, [legendary, quit, endLegendary, router]);
 
   // Enter = Check / Continue, like the real thing. Native clicks on the primary button are left alone.
   useEffect(() => {
@@ -112,7 +128,9 @@ export function LessonScreen({ lessonId, kind }: { lessonId: number; kind: Attem
         />
       )}
       {timeUp && <TimesUpModal onRetry={() => router.replace(`/legendary/play?run=${Date.now()}`)} onQuit={quit} />}
-      {quitOpen && !timeUp && <QuitLessonModal onStay={() => setQuitOpen(false)} onQuit={quit} />}
+      {quitOpen && !timeUp && (
+        <QuitLessonModal onStay={() => setQuitOpen(false)} onQuit={() => void endSession()} legendary={legendary} busy={ending} error={endError} />
+      )}
     </div>
   );
 }

@@ -87,8 +87,16 @@ describe("SpeakButton", () => {
       constructor(public text: string) {}
     }
     const synth = {
-      speak: vi.fn((u: Utterance) => spoken.push(u)),
-      cancel: vi.fn(),
+      speaking: false,
+      pending: false,
+      paused: false,
+      speak: vi.fn((u: Utterance) => {
+        spoken.push(u);
+        synth.speaking = true;
+      }),
+      cancel: vi.fn(() => {
+        synth.speaking = false;
+      }),
       getVoices: () => [{ lang: "es-ES", name: "Monica" }],
     };
     vi.stubGlobal("speechSynthesis", synth);
@@ -108,15 +116,16 @@ describe("SpeakButton", () => {
     await vi.waitFor(() => expect(screen.getByRole("button", { name: /listen: hola/i })).toHaveAttribute("aria-pressed", "false"));
   });
 
-  it("stops playback when pressed again", async () => {
-    const { synth } = stubSynthesis();
+  it("pressing again restarts the speech: the old one is cancelled and exactly one replacement is spoken", async () => {
+    const { synth, spoken } = stubSynthesis();
     render(<SpeakButton text="Hola" />);
     const button = screen.getByRole("button", { name: /listen: hola/i });
     await userEvent.click(button);
-    synth.cancel.mockClear();
-    await userEvent.click(button);
+    expect(synth.speak).toHaveBeenCalledTimes(1);
+    await userEvent.click(button); // pressed while still playing
     expect(synth.cancel).toHaveBeenCalled();
-    expect(synth.speak).toHaveBeenCalledOnce();
+    await vi.waitFor(() => expect(synth.speak).toHaveBeenCalledTimes(2));
+    expect(spoken.map((u) => u.text)).toEqual(["Hola", "Hola"]);
   });
 
   it("is disabled with an explanation when the browser has no speech synthesis", () => {

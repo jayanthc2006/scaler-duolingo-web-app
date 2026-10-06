@@ -7,8 +7,10 @@ import type {
   CompleteResult,
   Course,
   Leaderboard,
+  LegendaryEnd,
   LegendaryStatus,
   Learner,
+  PairCheckResult,
   Path,
   Profile,
   SkillDetail,
@@ -31,10 +33,10 @@ export const api = {
       method: "POST",
       body: { attempt_id: attemptId, request_id: requestId, answer },
     }),
-  checkPair: (exerciseId: number, leftId: string, rightId: string) =>
-    request<{ match: boolean }>(`/exercises/${exerciseId}/check-pair`, {
+  checkPair: (exerciseId: number, attemptId: number, requestId: string, leftId: string, rightId: string) =>
+    request<PairCheckResult>(`/exercises/${exerciseId}/check-pair`, {
       method: "POST",
-      body: { left_id: leftId, right_id: rightId },
+      body: { attempt_id: attemptId, request_id: requestId, left_id: leftId, right_id: rightId },
     }),
   completeLesson: (lessonId: number, attemptId: number) =>
     request<CompleteResult>(`/lessons/${lessonId}/complete`, { method: "POST", body: { attempt_id: attemptId } }),
@@ -46,4 +48,5 @@ export const api = {
 
   legendary: () => request<LegendaryStatus>("/legendary"),
   startLegendary: () => request<Attempt>("/legendary/start", { method: "POST" }),
+  endLegendary: (attemptId: number) => request<LegendaryEnd>(`/legendary/${attemptId}/end`, { method: "POST" }),
 };

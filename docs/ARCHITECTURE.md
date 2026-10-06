@@ -46,7 +46,7 @@ default learner (`alex`) is always "logged in".
 | `services/gamification.py` | pure-ish hearts / streak / XP-activity rules |
 | `services/progress.py` | learning-path state: statuses and the unlock rule |
 | `services/attempts.py` | start/resume an attempt, public exercise projection |
-| `services/answers.py` | answer submission (idempotent), pair probe |
+| `services/answers.py` | answer submission and per-pair checks (idempotent; wrong answers and wrong pairs cost a heart) |
 | `services/completion.py` | completion verification + atomic apply |
 | `services/hearts.py` | refill with gems, start a practice session |
 | `services/leaderboard.py` | weekly leaderboard, derived per request |

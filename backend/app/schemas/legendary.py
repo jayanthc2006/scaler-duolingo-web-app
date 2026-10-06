@@ -10,3 +10,9 @@ class LegendaryStatusOut(BaseModel):
     time_limit_seconds: int
     reward_xp: int
     reward_gems: int
+    wrong_answer_penalty_seconds: int
+
+
+class LegendaryEndOut(BaseModel):
+    attempt_id: int
+    status: str  # "abandoned" (just ended), or the terminal status it already had

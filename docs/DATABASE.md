@@ -44,7 +44,7 @@ users 1─1 user_stats     │         └────────────�
 | `users` | learner identity (`username` unique, `display_name`, `avatar_color`) | |
 | `user_stats` | 1:1 counters: `xp_total`, `hearts`, `hearts_updated_at` (regen anchor), `gems`, `current_streak`, `longest_streak`, `last_activity_date`, `daily_goal_xp` | CHECK hearts ≥ 0, gems ≥ 0, xp ≥ 0, `longest_streak ≥ current_streak ≥ 0` |
 | `user_skill_progress` | `lessons_completed`, `completed_at` per (user, skill) | UNIQUE(`user_id`,`skill_id`); CHECK ≥ 0 |
-| `lesson_attempts` | one run through a lesson: `kind` (`lesson`/`practice`/`legendary`), `status` (`in_progress`/`completed`/`failed`), `mistakes`, `xp_awarded` (completion bonus), `gems_awarded`, timestamps | partial unique indexes (below) |
+| `lesson_attempts` | one run through a lesson: `kind` (`lesson`/`practice`/`legendary`), `status` (`in_progress`/`completed`/`failed`/`abandoned`), `mistakes`, `xp_awarded` (completion bonus), `gems_awarded`, timestamps | partial unique indexes (below) |
 | `exercise_attempts` | every submitted answer: `request_id`, `is_correct`, `heart_lost`, `xp_awarded`, `submitted_answer` JSON | UNIQUE(`attempt_id`,`request_id`); partial unique index (below) |
 | `daily_activity` | XP and lessons per (user, UTC date) | UNIQUE(`user_id`,`activity_date`) |
 | `achievements` | data-driven badges: `code`, `metric`, `threshold` | `code` unique |

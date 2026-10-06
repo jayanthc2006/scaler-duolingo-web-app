@@ -33,7 +33,7 @@ export default function LegendaryPage() {
         <h2 id="how-title" className="card-title">How it works</h2>
         <ul className="legend-rules">
           <li><Icon name="target" size={22} /> <span>Answer every exercise in <strong>{s.time_limit_seconds} seconds</strong>.</span></li>
-          <li><Icon name="heart" size={22} /> <span>No hearts at risk, but wrong answers cost you time.</span></li>
+          <li><Icon name="heart" size={22} /> <span>No hearts at risk, but each wrong answer costs <strong>{s.wrong_answer_penalty_seconds} seconds</strong>.</span></li>
           <li><Icon name="bolt" size={22} /> <span>Win to earn <strong>+{s.reward_xp} XP</strong> and <strong>+{s.reward_gems} gems</strong>, once per lesson.</span></li>
           <li><Icon name="book" size={22} /> <span>Your lesson progress stays exactly as it was.</span></li>
         </ul>

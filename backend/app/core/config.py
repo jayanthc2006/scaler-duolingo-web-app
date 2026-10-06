@@ -48,12 +48,11 @@ class Settings:
 
     # --- legendary (timed) challenge ---
     legendary_seconds: int = field(default_factory=lambda: _env_int("LEGENDARY_SECONDS", 60))
-    legendary_grace_seconds: int = 3  # tolerance for network latency when the client submits the win
-    legendary_xp: int = field(default_factory=lambda: _env_int("LEGENDARY_XP", 20))
-    legendary_gems: int = field(default_factory=lambda: _env_int("LEGENDARY_GEMS", 10))
-
-    # --- legendary (timed) challenge ---
-    legendary_seconds: int = field(default_factory=lambda: _env_int("LEGENDARY_SECONDS", 60))
+    # each wrong answer (or wrong match pair) takes this many seconds off the clock; the penalty is derived on the
+    # server from the attempt's recorded wrong answers, so a refresh or a client cannot remove it
+    legendary_wrong_answer_penalty_seconds: int = field(
+        default_factory=lambda: _env_int("LEGENDARY_WRONG_ANSWER_PENALTY_SECONDS", 5)
+    )
     legendary_grace_seconds: int = 3  # tolerance for network latency when the client submits the win
     legendary_xp: int = field(default_factory=lambda: _env_int("LEGENDARY_XP", 20))
     legendary_gems: int = field(default_factory=lambda: _env_int("LEGENDARY_GEMS", 10))

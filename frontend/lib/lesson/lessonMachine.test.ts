@@ -125,4 +125,37 @@ describe("lessonReducer", () => {
     expect(lessonReducer(s, { type: "ANSWER_OK", result: result() })).toBe(s);
     expect(lessonReducer(s, { type: "HEARTS_RESTORED", learner })).toBe(s);
   });
+
+  describe("PAIR_MISS (a wrong match-pairs pair)", () => {
+    const loaded = (): LessonState => run({ type: "LOADED", attempt: attempt() });
+    const fewer: Learner = { ...learner, hearts: 4 };
+
+    it("adopts the server's learner without leaving the question", () => {
+      const s = lessonReducer(loaded(), { type: "PAIR_MISS", learner: fewer, outOfHearts: false });
+      expect(s.phase.name).toBe("question");
+      expect(s.learner?.hearts).toBe(4);
+      expect(s.queue).toEqual([1, 2, 3]); // nothing is re-queued or solved: the exercise is still open
+      expect(s.solvedCount).toBe(0);
+    });
+
+    it("enters out_of_hearts when that was the last heart", () => {
+      const s = lessonReducer(loaded(), { type: "PAIR_MISS", learner: { ...learner, hearts: 0 }, outOfHearts: true });
+      expect(s.phase.name).toBe("out_of_hearts");
+    });
+
+    it("treats a bare out-of-hearts refusal as zero hearts", () => {
+      const s = lessonReducer(loaded(), { type: "PAIR_MISS", learner: null, outOfHearts: true });
+      expect(s.phase.name).toBe("out_of_hearts");
+      expect(s.learner?.hearts).toBe(0);
+    });
+
+    it("is ignored outside a question, and the existing refill recovery still works afterwards", () => {
+      const checking = run({ type: "LOADED", attempt: attempt() }, { type: "DRAFT", answer: { text: "x" } }, { type: "SUBMIT" });
+      expect(lessonReducer(checking, { type: "PAIR_MISS", learner: fewer, outOfHearts: true })).toBe(checking);
+      const out = lessonReducer(loaded(), { type: "PAIR_MISS", learner: { ...learner, hearts: 0 }, outOfHearts: true });
+      const back = lessonReducer(out, { type: "HEARTS_RESTORED", learner });
+      expect(back.phase.name).toBe("question");
+      expect(back.step).toBe(out.step + 1); // the exercise remounts fresh, like any other recovery
+    });
+  });
 });

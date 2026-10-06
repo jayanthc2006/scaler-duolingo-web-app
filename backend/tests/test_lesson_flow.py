@@ -193,18 +193,23 @@ def test_attempt_is_resumable_after_refresh(api, db):
     assert again["solved_exercise_ids"] == [ex["id"]]
 
 
-def test_match_pair_probe(api, db):
+def test_match_pair_check(api, db):
     attempt = api.start(lesson_id(db, "Introductions", 1))
     pairs_ex = next(e for e in attempt["exercises"] if e["type"] == "match_pairs")
     key = api.key(pairs_ex["id"]).answer["pairs"]
     left, right = next(iter(key.items()))
     url = f"/api/exercises/{pairs_ex['id']}/check-pair"
-    assert api.c.post(url, json={"left_id": left, "right_id": right}).json() == {"match": True}
-    assert api.c.post(url, json={"left_id": left, "right_id": "r9"}).json() == {"match": False}
+    base = {"attempt_id": attempt["attempt_id"], "left_id": left}
+    assert api.c.post(url, json={**base, "request_id": "pair-ok-0001", "right_id": right}).json()["match"] is True
+    assert api.me()["hearts"] == 5  # a correct pair is free
+    assert api.c.post(url, json={**base, "request_id": "pair-bad-0001", "right_id": "r9"}).json()["match"] is False
     mc_ex = next(e for e in attempt["exercises"] if e["type"] == "multiple_choice")
-    r = api.c.post(f"/api/exercises/{mc_ex['id']}/check-pair", json={"left_id": "a", "right_id": "b"})
+    r = api.c.post(
+        f"/api/exercises/{mc_ex['id']}/check-pair",
+        json={"attempt_id": attempt["attempt_id"], "request_id": "pair-mc-0001", "left_id": "a", "right_id": "b"},
+    )
     assert r.status_code == 409
-    assert api.me()["hearts"] == 5  # probing has no side effects
+    assert api.me()["hearts"] == 4  # only the wrong pair cost a heart
 
 
 # ------------------------------------------------------------------ hearts
@@ -330,11 +335,12 @@ def test_profile_stats_update_after_lesson(api, db):
     assert after["learner"]["xp_total"] == 146
 
 
-def test_pair_probe_is_refused_for_locked_lessons(api, db):
+def test_pair_check_is_refused_for_locked_lessons(api, db):
     from app.models import Exercise, Lesson
 
     locked = lesson_id(db, "Everyday Words", 1)
     ex = db.query(Exercise).filter_by(lesson_id=locked, type="match_pairs").one()
-    r = api.c.post(f"/api/exercises/{ex.id}/check-pair", json={"left_id": "l0", "right_id": "r0"})
+    body = {"attempt_id": 1, "request_id": "pair-lock-0001", "left_id": "l0", "right_id": "r0"}
+    r = api.c.post(f"/api/exercises/{ex.id}/check-pair", json=body)
     assert r.status_code == 403 and r.json()["error"]["code"] == "lesson_locked"
     assert db.get(Lesson, locked) is not None

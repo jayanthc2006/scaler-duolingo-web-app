@@ -7,15 +7,15 @@ that hides its timer still cannot claim a reward for a slow run.
 """
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.clock import Clock
 from app.core.config import Settings
-from app.core.errors import ConflictError
+from app.core.errors import ConflictError, NotFoundError
 from app.db.session import begin_write
-from app.models import Lesson, LessonAttempt, Skill, Unit, User
-from app.schemas.legendary import LegendaryStatusOut
+from app.models import ExerciseAttempt, Lesson, LessonAttempt, Skill, Unit, User
+from app.schemas.legendary import LegendaryEndOut, LegendaryStatusOut
 from app.schemas.lesson import AttemptOut
 from app.services import attempts
 from app.services import learner as learner_service
@@ -60,16 +60,49 @@ def status(db: Session, user: User, settings: Settings) -> LegendaryStatusOut:
         time_limit_seconds=settings.legendary_seconds,
         reward_xp=settings.legendary_xp,
         reward_gems=settings.legendary_gems,
+        wrong_answer_penalty_seconds=settings.legendary_wrong_answer_penalty_seconds,
     )
 
 
-def seconds_left(attempt: LessonAttempt, now: datetime, settings: Settings) -> int:
-    elapsed = (now - attempt.started_at).total_seconds()
-    return max(0, int(settings.legendary_seconds - elapsed + 0.999))  # round up: never show 0 early
+def penalty_seconds(db: Session, attempt: LessonAttempt, settings: Settings) -> int:
+    """Time lost to wrong answers: one fixed penalty per recorded wrong answer / wrong pair of this attempt.
+
+    Derived from the attempt's own `exercise_attempts`, so it is server state: a refresh cannot remove it, the client
+    cannot set it, and a repeated request id (which never inserts a second row) can never add it twice.
+    """
+    wrong = db.scalar(
+        select(func.count()).select_from(ExerciseAttempt).where(
+            ExerciseAttempt.attempt_id == attempt.id, ExerciseAttempt.is_correct.is_(False)
+        )
+    )
+    return (wrong or 0) * settings.legendary_wrong_answer_penalty_seconds
 
 
-def is_expired(attempt: LessonAttempt, now: datetime, settings: Settings) -> bool:
-    return (now - attempt.started_at).total_seconds() >= settings.legendary_seconds
+def used_seconds(db: Session, attempt: LessonAttempt, now: datetime, settings: Settings) -> float:
+    """Clock time used so far: real elapsed time plus accumulated wrong-answer penalties."""
+    return (now - attempt.started_at).total_seconds() + penalty_seconds(db, attempt, settings)
+
+
+def seconds_left(db: Session, attempt: LessonAttempt, now: datetime, settings: Settings) -> int:
+    """Authoritative time left (never negative)."""
+    return max(0, int(settings.legendary_seconds - used_seconds(db, attempt, now, settings) + 0.999))  # round up
+
+
+def is_expired(db: Session, attempt: LessonAttempt, now: datetime, settings: Settings) -> bool:
+    return used_seconds(db, attempt, now, settings) >= settings.legendary_seconds
+
+
+def ensure_running(db: Session, attempt: LessonAttempt, now: datetime, settings: Settings) -> None:
+    """Called before an answer is judged: a run whose (penalty-adjusted) time is up accepts nothing more."""
+    if is_expired(db, attempt, now, settings):
+        attempt.status = "failed"
+        db.commit()
+        raise ConflictError("Time is up - this challenge is over.", code="legendary_expired")
+
+
+def clock_left(db: Session, attempt: LessonAttempt, now: datetime, settings: Settings) -> int | None:
+    """What answer responses report so the client's countdown follows the server (None for non-legendary attempts)."""
+    return seconds_left(db, attempt, now, settings) if attempt.kind == KIND else None
 
 
 def _open_attempts(db: Session, user_id: int) -> list[LessonAttempt]:
@@ -100,7 +133,7 @@ def start(db: Session, user: User, clock: Clock, settings: Settings) -> AttemptO
     playable = {lesson.id for lesson in candidates}
     attempt: LessonAttempt | None = None
     for open_attempt in _open_attempts(db, user.id):
-        if attempt is None and not is_expired(open_attempt, now, settings) and open_attempt.lesson_id in playable:
+        if attempt is None and not is_expired(db, open_attempt, now, settings) and open_attempt.lesson_id in playable:
             attempt = open_attempt
         else:
             open_attempt.status = "failed"
@@ -115,13 +148,13 @@ def start(db: Session, user: User, clock: Clock, settings: Settings) -> AttemptO
     db.commit()
     out = attempts.build_attempt_out(db, attempt, lesson, learner)
     out.time_limit_seconds = settings.legendary_seconds
-    out.seconds_left = seconds_left(attempt, now, settings)
+    out.seconds_left = seconds_left(db, attempt, now, settings)
     return out
 
 
 def check_can_complete(db: Session, attempt: LessonAttempt, now: datetime, settings: Settings) -> None:
     """Called by /complete before any reward is applied. Closes the attempt as failed when it must not pay."""
-    late = (now - attempt.started_at).total_seconds() > settings.legendary_seconds + settings.legendary_grace_seconds
+    late = used_seconds(db, attempt, now, settings) > settings.legendary_seconds + settings.legendary_grace_seconds
     conquered = attempt.lesson_id in _lesson_ids(db, attempt.user_id, KIND)
     if late or conquered:
         attempt.status = "failed"
@@ -129,3 +162,16 @@ def check_can_complete(db: Session, attempt: LessonAttempt, now: datetime, setti
         if late:
             raise ConflictError("Time is up - this challenge can no longer be completed.", code="legendary_expired")
         raise ConflictError("You already won the legendary challenge for this lesson.", code="legendary_already_won")
+
+
+def end(db: Session, user: User, attempt_id: int) -> LegendaryEndOut:
+    """Explicit End Session: abandon this run for good. Terminal and idempotent: only an in-progress attempt
+    changes (to "abandoned", no reward, no progress); one that is already over is reported as is, never reopened."""
+    begin_write(db)  # serialise against a concurrent start / answer / complete
+    attempt = db.get(LessonAttempt, attempt_id)
+    if attempt is None or attempt.user_id != user.id or attempt.kind != KIND:
+        raise NotFoundError("Attempt not found.", code="attempt_not_found")
+    if attempt.status == "in_progress":
+        attempt.status = "abandoned"
+        db.commit()
+    return LegendaryEndOut(attempt_id=attempt.id, status=attempt.status)

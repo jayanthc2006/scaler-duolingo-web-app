@@ -23,11 +23,13 @@ same draft) is UNIQUE per attempt; partial unique indexes make "solved once per 
 and "completed once per lesson" impossible to violate even under races. Completion additionally uses an atomic
 compare-and-set. *Rejected:* in-process locks (break with several workers) and "trust the client to send once".
 
-**D-6. Match-pairs uses a probe endpoint.** Per-tile feedback requires the server's answer, so `check-pair` answers
-"does this left match this right?" without side effects. *Trade-off (accepted):* an adversary can brute-force a pairing
-(n² probes) - for a vocabulary-matching game with no stakes this is the same information a learner gets by playing;
-the final `answer` is still validated, and wrong probes cost no heart. *Rejected:* sending the key to the client; or
-charging a heart per wrong pair (punitive; Duolingo-like UX is lenient).
+**D-6. Match-pairs checks each pair on the server, and a wrong pair costs a heart.** Per-pair feedback requires the server's
+answer, so `check-pair` answers "does this left match this right?" for one completed pair (two taps). A wrong pair is a mistake like
+any wrong answer: -1 heart in a real lesson (free in practice / legendary), decided and recorded server-side as an `exercise_attempt`
+under the client's `request_id`, so retries and duplicate requests are replays, not extra charges. The call is attempt-scoped
+(ownership, same lesson, open attempt), so it cannot be used as a free oracle: brute-forcing a pairing costs hearts. The final `answer`
+is still validated by the normal path. *Rejected:* sending the key to the client; a client-reported heart loss; keeping the endpoint free
+(wrong pairs would then be the only mistakes that cost nothing).
 
 **D-7. Linear unlock rule + derived statuses.** Lesson *k* unlocks when lesson *k−1* (across skills/units) is done.
 Only `lessons_completed` is stored; statuses are derived, so there are no flags to drift out of sync.
@@ -69,8 +71,10 @@ and in-process locks (break with several workers). *Trade-off:* writers queue; a
 **D-19. Bounded ids.** Path/body ids are validated to the 64-bit range so oversized values return `422`, not an
 `OverflowError` 500.
 
-**D-17. Accent handling.** Typed answers ignore case, punctuation and the accents on `áéíóúü`, but not `ñ`
-(`ano` ≠ `año`). Documented in API.md; trivial to tighten per exercise.
+**D-17. Accent handling.** Typed and fill-in answers ignore case, punctuation, the accents on `áéíóúü` and, deliberately, a missing `ñ`
+(`pequena` = `pequeña`): the learner-friendly typing Duolingo-style apps offer, applied in one place (`normalize(fold_enye=True)`) and
+only to free text. Word-bank tokens keep `ñ` distinct (they are tiles, not typing). Feedback still shows the properly accented answer.
+*Trade-off:* `ano` and `año` are not told apart when typed.
 
 **D-20. Legendary reuses the lesson engine; the server owns the clock.** A new attempt `kind='legendary'` on a lesson the learner
 already completed, started by its own endpoint (so the generic start cannot mint one). Answers, completion, idempotency and the

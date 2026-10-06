@@ -54,9 +54,17 @@ def submit_answer(
 
 
 @router.post("/exercises/{exercise_id}/check-pair", response_model=PairCheckOut)
-def check_pair(exercise_id: IdPath, body: PairCheckIn, db: DbDep, user: UserDep) -> PairCheckOut:
-    """Side-effect free probe so match-pairs can flash an invalid pair immediately."""
-    return PairCheckOut(match=answers.check_pair(db, user, exercise_id, body.left_id, body.right_id))
+def check_pair(
+    exercise_id: IdPath,
+    body: PairCheckIn,
+    db: DbDep,
+    user: UserDep,
+    clock: ClockDep,
+    settings: SettingsDep,
+) -> PairCheckOut:
+    """Judge one completed pair so match-pairs can flash an invalid pair immediately. A wrong pair in a real
+    lesson costs one heart, decided here (idempotent per `request_id`)."""
+    return answers.check_pair(db, user, exercise_id, body, clock, settings)
 
 
 @router.post("/lessons/{lesson_id}/complete", response_model=CompleteOut)

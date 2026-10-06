@@ -45,7 +45,9 @@ export type LessonAction =
   | { type: "COMPLETE_OK"; result: CompleteResult }
   | { type: "COMPLETE_FAILED"; message: string }
   | { type: "RETRY" }
-  | { type: "HEARTS_RESTORED"; learner: Learner };
+  | { type: "HEARTS_RESTORED"; learner: Learner }
+  /** a wrong match-pairs pair cost a heart while the exercise is still open (`learner: null` = the server said 0 hearts) */
+  | { type: "PAIR_MISS"; learner: Learner | null; outOfHearts: boolean };
 
 export const initialLessonState: LessonState = {
   phase: { name: "loading" },
@@ -130,6 +132,12 @@ export function lessonReducer(state: LessonState, action: LessonAction): LessonS
         ...state,
         phase: state.phase.retry === "load" ? { name: "loading" } : { name: "completing" },
       };
+
+    case "PAIR_MISS": {
+      if (state.phase.name !== "question") return state;
+      const learner = action.learner ?? (state.learner && { ...state.learner, hearts: 0 });
+      return { ...state, learner, phase: action.outOfHearts ? { name: "out_of_hearts" } : state.phase };
+    }
 
     case "HEARTS_RESTORED":
       if (state.phase.name !== "out_of_hearts") return state;

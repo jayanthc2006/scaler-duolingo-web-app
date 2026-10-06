@@ -24,18 +24,18 @@ persistent number and for answer correctness.
   achievements, toasts for confirmations, weekly leaderboard that updates as you play.
 * **Backend authority**: answers are judged server-side, keys never sent to the client, completion is verified, all awards are
   idempotent and transactional.
-* **Pages**: Learn, Leaderboard, Legendary challenge, Profile (stats, 7-day XP chart, achievements), Settings (daily goal and
-  theme are real; the rest are "Coming soon" placeholders).
+* **Pages**: Learn, Leaderboard, Legendary challenge, Profile (stats, 7-day XP chart, achievements), Settings (daily goal,
+  theme and sound effects are real; the rest are "Coming soon" placeholders).
 * Responsive (desktop sidebar + right rail, tablet icon rail, phone bottom bar), reduced-motion aware, keyboard focus styles.
 
 ### Bonus features (all six)
 
 | Bonus | What it is |
 | --- | --- |
-| Exercise audio | A speaker button reads the Spanish with the browser's built-in text-to-speech (`SpeechSynthesis`, `es-ES`): on Spanish prompts (translate/type "Write this in English", "What does "X" mean?"), on tapping a Spanish tile in match-pairs, and after answering (the finished Spanish answer, from the feedback bar). Disabled with an explanation if the browser has no speech synthesis. No audio files, no service, no backend involvement, and it never touches grading. |
+| Exercise audio | A speaker button reads the Spanish with the browser's built-in text-to-speech (`SpeechSynthesis`, `es-ES`): on Spanish prompts (translate/type "Write this in English", "What does "X" mean?"), on tapping a Spanish tile in match-pairs, and after answering (the finished Spanish answer, from the feedback bar). Disabled with an explanation if the browser has no speech synthesis. No audio files, no service, no backend involvement, and it never touches grading. Separately, short synthesised feedback sounds (Web Audio, no asset files) play once per judged answer (correct / wrong, including a wrong match pair) and once when a lesson completes; Settings → Sound → *Sound effects* turns them off. |
 | Achievements | 9 data-driven badges (metric + threshold rows), unlocked server-side on completion, shown on Profile (locked/unlocked) and as toasts / on the completion screen. `Legend` unlocks with the first Legendary win, so it can be demoed in one minute. |
 | Real leaderboard | Weekly XP over 8 seeded rivals + the learner, **derived on every request** from `daily_activity`; earning XP (lesson, or a Legendary win) moves the learner's rank. |
-| Legendary (timed) challenge | `/legendary`: redo a lesson you finished against a **60-second** clock. Reuses the lesson engine (same exercises, same answer endpoint, same `/complete`). The deadline is enforced by the server; a win pays **+20 XP and +10 gems once per lesson**; failure/expiry costs nothing. See [LESSON_ENGINE](docs/LESSON_ENGINE.md#legendary-challenge) and [D-20](docs/DECISIONS.md). |
+| Legendary (timed) challenge | `/legendary`: redo a lesson you finished against a **60-second** clock. Reuses the lesson engine (same exercises, same answer endpoint, same `/complete`). The deadline is enforced by the server; a win pays **+20 XP and +10 gems once per lesson**; each wrong answer costs a fixed **5 seconds** (no hearts at risk); ending the session abandons the run, running out of time closes it, and a fresh *Start* / *Try again* always begins a new one while a refresh resumes the live one; failure/expiry costs nothing else. See [LESSON_ENGINE](docs/LESSON_ENGINE.md#legendary-challenge) and [D-20](docs/DECISIONS.md). |
 | Dark mode | Settings → Theme: Light / Dark / Auto (default: follow the device). Implemented as design tokens under `<html data-scheme="dark">`, applied before first paint, persisted in `localStorage`. |
 | Responsive | Desktop sidebar + right rail, tablet icon rail, phone bottom bar; checked at 360 / 375 / 430 / 768 / 1280 / 1440 px in both themes. |
 
@@ -79,7 +79,7 @@ Full detail: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/LESSON_ENGIN
 ```
 backend/
   app/            main.py, core/ (config, clock, errors), db/, models/, schemas/, services/, routers/, seed/
-  tests/          122 tests (pytest): API flows, hardening/break-tests, concurrency, DB constraints, seed, legendary
+  tests/          161 tests (pytest): API flows, hardening/break-tests, concurrency, DB constraints, seed, legendary, match-pair hearts
   Dockerfile  requirements*.txt  pyproject.toml (ruff)  .env.example
 frontend/
   app/            routes (learn, leaderboard, legendary, profile, settings, lesson/[lessonId], legendary/play)
@@ -109,7 +109,7 @@ users 1─* daily_activity           users 1─* user_achievements *─1 achieve
 | `users` | learner identity (`username` unique, `display_name`, `avatar_color`); the seeded learner plus 8 leaderboard rivals |
 | `user_stats` | 1:1 with `users`: XP, hearts and their regeneration anchor, gems, current/longest streak, last activity date, daily goal |
 | `user_skill_progress` | lessons completed and completion time per (user, skill) |
-| `lesson_attempts` | one run through a lesson: `kind` (`lesson` / `practice` / `legendary`), `status` (`in_progress` / `completed` / `failed`), mistakes, awarded XP and gems, timestamps |
+| `lesson_attempts` | one run through a lesson: `kind` (`lesson` / `practice` / `legendary`), `status` (`in_progress` / `completed` / `failed` / `abandoned`), mistakes, awarded XP and gems, timestamps |
 | `exercise_attempts` | every submitted answer: idempotency `request_id`, correctness, heart lost, XP awarded, the submitted answer |
 | `daily_activity` | XP and lessons per (user, UTC day); drives the daily goal, the 7-day chart and the weekly leaderboard |
 | `achievements` | badge definitions as data (`code`, `metric`, `threshold`): 9 seeded |
@@ -129,7 +129,7 @@ GET  /api/units  /api/skills          GET  /api/lessons/{id}  GET /api/lessons/{
 POST /api/lessons/{id}/attempts       POST /api/exercises/{id}/answer              POST /api/exercises/{id}/check-pair
 POST /api/lessons/{id}/complete       POST /api/hearts/practice                    POST /api/hearts/refill
 GET  /api/leaderboard
-GET  /api/legendary                   POST /api/legendary/start
+GET  /api/legendary                   POST /api/legendary/start   POST /api/legendary/{attempt_id}/end
 ```
 Errors share one envelope: `{"error": {"code": "...", "message": "..."}}`. Interactive docs at `http://127.0.0.1:8000/docs`.
 
@@ -172,7 +172,7 @@ On Windows PowerShell, the equivalent of the `cp` line is `Copy-Item .env.exampl
 | `DEFAULT_USERNAME` | backend | `alex` | the always-logged-in learner |
 | `AUTO_SEED` | backend | `1` | seed an empty DB on startup |
 | `MAX_HEARTS`, `HEART_REGEN_SECONDS`, `REFILL_COST_GEMS`, `XP_PER_CORRECT`, `XP_LESSON_COMPLETE`, `GEMS_PER_LESSON` | backend | 5, 1800, 100, 2, 10, 5 | game rules (set `HEART_REGEN_SECONDS=10` to watch regeneration live) |
-| `LEGENDARY_SECONDS`, `LEGENDARY_XP`, `LEGENDARY_GEMS` | backend | 60, 20, 10 | legendary challenge clock and reward |
+| `LEGENDARY_SECONDS`, `LEGENDARY_XP`, `LEGENDARY_GEMS`, `LEGENDARY_WRONG_ANSWER_PENALTY_SECONDS` | backend | 60, 20, 10, 5 | legendary challenge clock, reward and per-wrong-answer time penalty |
 
 ## Demo journey
 
@@ -182,7 +182,7 @@ On Windows PowerShell, the equivalent of the `cp` line is `Copy-Item .env.exampl
 4. **Continue** → the node now shows a progress ring (1/2); top bar, daily goal and leaderboard rank updated.
 5. Refresh: everything persists. Tap a locked node: it explains why it can't start.
 6. Lose all hearts: out-of-hearts modal → *Practice to earn a heart* or *Refill for 100 gems*.
-7. **Legendary** (sidebar star): *Start* → finish the exercises before the 60 s clock ends → +20 XP, +10 gems, the *Legend* badge, and a higher leaderboard rank. Let the clock run out to see the time's-up screen; *Try again* restarts it.
+7. **Legendary** (sidebar star): *Start* → finish the exercises before the 60 s clock ends (each wrong answer costs 5 s) → +20 XP, +10 gems, the *Legend* badge, and a higher leaderboard rank. Let the clock run out to see the time's-up screen; *Try again* restarts it. Refresh mid-run to resume it; the X → *End session* abandons it, so *Start* begins a fresh run.
 8. **Settings → Theme → Dark**; refresh: it persists. Tap the speaker button on a Spanish prompt, or after answering, to hear it.
 
 Reset the demo at any time with `python -m app.seed --reset` (dates are relative to the moment you seed).
@@ -190,9 +190,9 @@ Reset the demo at any time with `python -m app.seed --reset` (dates are relative
 ## Testing
 
 ```bash
-cd backend && python -m pytest        # 122 tests
+cd backend && python -m pytest        # 161 tests
 cd backend && python -m ruff check app tests
-cd frontend && npm test               # 57 tests (Vitest)
+cd frontend && npm test               # 107 tests (Vitest)
 cd frontend && npm run lint && npm run typecheck && npm run build
 ```
 
@@ -200,7 +200,7 @@ Backend coverage: health, validation and error shapes, answer evaluation per typ
 completion (incomplete rejected, bonus once, duplicate/parallel completion), request-id replay, solved-once, streak (today /
 yesterday / repeated / missed day) with a fixed clock, daily activity, locked lessons, zero hearts, refill, practice,
 leaderboard, profile, DB constraints and seed determinism, restart persistence, hostile/malformed input (oversized ids, forged fields, other learners' attempts, locked secondary endpoints), and **16-way parallel** requests against a file DB (answers, completion, refill).
-Legendary: reward once per lesson, server-enforced deadline (late win rejected, grace window), resume with remaining time, retry gets a fresh clock, no hearts/skill progress touched, replay is idempotent.
+Legendary: reward once per lesson, server-enforced deadline (late win rejected, grace window), resume with remaining time, retry gets a fresh clock, wrong-answer time penalty (server-derived, idempotent per request id, concurrent-safe), End Session is terminal and idempotent, no hearts/skill progress touched, replay is idempotent.
 Frontend: the lesson state machine, every exercise component, feedback bar, path geometry, theme (incl. the pre-paint script), speech rules + the speak button (supported / unsupported), the deadline hook.
 
 Run the commands above to see the current results; the test counts quoted in this README were accurate when it was last updated.
@@ -223,7 +223,7 @@ Run the commands above to see the current results; the test counts quoted in thi
 
 Attempts as the unit of work; answer keys never leave the server; idempotency via request ids + partial unique indexes +
 compare-and-set; derived leaderboard/skill status; lazy heart regeneration with an injected clock; no `POST /activity`
-(streak can't be client-driven); match-pairs probe endpoint. Details and rejected alternatives: [docs/DECISIONS.md](docs/DECISIONS.md).
+(streak can't be client-driven); per-pair server check in match-pairs (a wrong pair costs a heart). Details and rejected alternatives: [docs/DECISIONS.md](docs/DECISIONS.md).
 
 ## Assumptions
 
@@ -234,8 +234,7 @@ compare-and-set; derived leaderboard/skill status; lazy heart regeneration with 
 ## Known limitations
 
 * SQLite = single writer node; no migrations (`create_all`).
-* The `check-pair` endpoint can be brute-forced (documented trade-off, D-6).
-* Audio is the browser's text-to-speech (voice quality depends on the OS/browser; no recorded audio, no speech *recognition* / pronunciation scoring). No real time-zone handling; Settings other than daily goal and theme are placeholders.
+* Audio is the browser's text-to-speech (voice quality depends on the OS/browser; no recorded audio, no speech *recognition* / pronunciation scoring). No real time-zone handling; Settings other than daily goal, theme and sound effects are placeholders.
 * The Legendary clock is server-authoritative but the UI countdown is client-side (a slow client sees the "time's up" screen at most a moment after the server would reject).
 * Not verified in browsers other than Chromium; no screen-reader testing; no automated end-to-end suite.
 * Not deployed (see above).
