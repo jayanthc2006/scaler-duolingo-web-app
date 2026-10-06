@@ -8,7 +8,8 @@ persistent number and for answer correctness.
 > Original implementation. The public Duolingo product was used only as a UX reference; there is no copied code and no
 > proprietary asset (the mascot, icons and path artwork are hand-written SVG/CSS).
 
-* **Live demo:** _not deployed yet_ - see [Deployment](#deployment). No URL is claimed here.
+* **Live demo:** https://sprout-web-q8tq.onrender.com
+* **Backend API:** https://sprout-api-xv7i.onrender.com
 * Docs: [Architecture](docs/ARCHITECTURE.md) · [Database](docs/DATABASE.md) · [API](docs/API.md) ·
   [Lesson engine](docs/LESSON_ENGINE.md) · [Decisions](docs/DECISIONS.md) · [Interview notes](docs/INTERVIEW_NOTES.md)
 
@@ -207,17 +208,30 @@ Run the commands above to see the current results; the test counts quoted in thi
 
 ## Deployment
 
-**Status: not deployed.** The repository contains templates, but no deployment was performed or verified.
+**Status: deployed and verified on Render.**
 
-* **Frontend → Vercel**: import the repo, set *Root Directory* to `frontend`, set `NEXT_PUBLIC_API_URL` to the API's public URL.
-* **Backend → Render** (`render.yaml`, Docker): the blueprint mounts a **persistent disk** at `/data` and points
-  `DATABASE_URL=sqlite:////data/app.db`; set `CORS_ORIGINS` to the Vercel origin. The app creates tables and seeds on first
-  boot and never overwrites existing data.
-* **Persistence caveat:** SQLite needs a durable filesystem. On hosts without a persistent disk (e.g. a free web service),
-  the database file is **lost on restart/redeploy** and the demo resets to its seed state. A disk also pins the service to
-  one instance. For multi-instance or free-tier hosting, switch `DATABASE_URL` to Postgres (SQLAlchemy models are portable;
-  the partial unique indexes need Postgres syntax checks).
-* Verify after deploying: `GET /api/health`, load the frontend, play a lesson, restart the service, confirm XP persisted.
+* **Frontend:** Render Web Service (`sprout-web`)  
+  Live URL: https://sprout-web-q8tq.onrender.com
+* **Backend:** Render Web Service (`sprout-api`)  
+  API URL: https://sprout-api-xv7i.onrender.com
+* **Region:** Singapore (Southeast Asia)
+* **Compute:** Render Free tier
+* **Database:** SQLite
+* **CORS:** the backend allows the deployed frontend origin through `CORS_ORIGINS`
+
+The hosted application was verified end-to-end: the frontend loads from Render, communicates with the FastAPI backend, completes lessons, updates XP/hearts/gems/progress, updates the leaderboard, and reloads the learner state after a browser refresh.
+
+**Free-tier persistence caveat:** Render Free services use an ephemeral filesystem and do not support persistent disks. The SQLite database therefore persists across normal page refreshes while the instance is running, but its filesystem state may be lost when the service restarts or spins down. `AUTO_SEED=1` recreates the seeded learner data when an empty database is initialized.
+
+For a durable SQLite deployment, use a paid Render service with a persistent disk. The checked-in `render.yaml` describes that persistent-disk deployment option; the submitted free-tier deployment was configured manually in Render.
+
+Post-deployment checks performed:
+* `GET /api/health` returned `{"status":"ok","database":"ok"}`
+* Live frontend loaded successfully
+* Lesson grading and rewards worked
+* Lesson completion and progression worked
+* Legendary challenge worked
+* Browser refresh preserved the current learner state
 
 ## Design decisions (short)
 
@@ -237,4 +251,3 @@ compare-and-set; derived leaderboard/skill status; lazy heart regeneration with 
 * Audio is the browser's text-to-speech (voice quality depends on the OS/browser; no recorded audio, no speech *recognition* / pronunciation scoring). No real time-zone handling; Settings other than daily goal, theme and sound effects are placeholders.
 * The Legendary clock is server-authoritative but the UI countdown is client-side (a slow client sees the "time's up" screen at most a moment after the server would reject).
 * Not verified in browsers other than Chromium; no screen-reader testing; no automated end-to-end suite.
-* Not deployed (see above).
