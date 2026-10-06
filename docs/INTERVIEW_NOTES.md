@@ -109,7 +109,7 @@ same envelope. The frontend `ApiError` exposes `code` (e.g. `out_of_hearts` driv
 ## 16. Trade-offs and limitations (be upfront)
 SQLite single writer; no auth (one default learner); UTC days; no migrations; one course;
 audio is browser TTS only (no speech recognition); leaderboard is weekly-XP over seeded rivals; Settings are placeholders except the daily goal, theme and sound effects;
-deployment not performed by me (see README).
+deployment: Render Free frontend + backend; SQLite persistence is subject to the free-tier ephemeral filesystem.
 
 ## 17. What changes at production scale
 Postgres + Alembic; real auth (sessions/OAuth) and per-user rows from `request.user`; per-user time zones; rate limiting on

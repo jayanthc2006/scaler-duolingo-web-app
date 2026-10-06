@@ -6,7 +6,7 @@ import { speakSpanish } from "@/lib/audio/speech";
 import type { MatchPairsPayload, TileOption } from "@/lib/types/api";
 
 interface Props extends ExerciseViewProps<MatchPairsPayload> {
-  /** Asks the backend whether one left/right pairing is right (no side effects). */
+  /** Asks the backend whether one left/right pairing is right; a wrong pair is recorded and can cost a heart. */
   checkPair: (leftId: string, rightId: string) => Promise<boolean>;
 }
 

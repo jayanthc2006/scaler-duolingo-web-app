@@ -118,6 +118,7 @@ FeedbackBar "Check" ─► useLessonSession.submit()
 
 ## Deployment shape
 
-* Frontend: static/SSR Next.js app (Vercel), configured only by `NEXT_PUBLIC_API_URL`.
-* Backend: one container (`backend/Dockerfile`), one SQLite file on a **persistent disk**
-  (`DATABASE_URL=sqlite:////data/app.db`), `CORS_ORIGINS` = the frontend origin. See README → Deployment.
+* Frontend: Next.js app deployed as a Render Web Service, configured with `NEXT_PUBLIC_API_URL`.
+* Backend: one Docker-based Render Web Service running FastAPI, with SQLite configured through `DATABASE_URL`.
+* Submitted deployment: Render Free tier for both services.
+* Persistence caveat: the Render Free filesystem is ephemeral, so SQLite state can be lost when the backend restarts or spins down. See README → Deployment.
